@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LoaderIcon, Mic, MicOff, Phone, PhoneOff, MessageSquare, SquareActivity } from "lucide-react";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAnam } from "../contexts/AnamContext";
 import {
   AnamEvent,
@@ -18,7 +18,16 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import AiPictureDialog from "@/components/ui/ai-picture-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import Markdown from "react-markdown";
+import { debounce } from "lodash";
 import { Skeleton } from "@/components/ui/skeleton";
 import Markdown from "react-markdown";
 import { debounce } from 'lodash';
@@ -29,6 +38,33 @@ enum ConversationState {
   LOADING = "LOADING",
   ACTIVE = "ACTIVE",
 }
+
+// Custom hook to check for messages
+const useWaitForMessages = (messages: Message[]) => {
+  const [hasMessages, setHasMessages] = useState(messages.length > 0);
+
+  const waitForMessages = useCallback(async () => {
+    if (messages.length === 0) {
+      console.log("Waiting for messages...");
+      const bufferTime = 2000;
+      const startTime = Date.now();
+      
+      while (Date.now() - startTime < bufferTime) {
+        if (messages.length > 0) {
+          setHasMessages(true);
+          return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      console.log("No messages received after 2-second buffer.");
+      return false;
+    }
+    return true;
+  }, [messages]);
+
+  return { hasMessages, waitForMessages };
+};
 
 export default function ChatRoomPage() {
   const [conversationState, setConversationState] = useState<ConversationState>(
@@ -42,8 +78,14 @@ export default function ChatRoomPage() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [diagnosticReport, setDiagnosticReport] = useState<string | null>(null);
   const [rawMessages, setRawMessages] = useState<Message[]>([]);
+  const [aiPictureDialogOpen, setAiPictureDialogOpen] = useState(false);
+  const [previousPictureAnalysis, setPreviousPictureAnalysis] = useState<
+    string | null
+  >(null);
 
   const { anamClient } = useAnam();
+
+  const { waitForMessages } = useWaitForMessages(rawMessages);
 
   const onConnectionEstablished = () => {
     console.log("Connection established");
@@ -88,6 +130,19 @@ export default function ChatRoomPage() {
 
   const onMessageReceived = (messageEvent: MessageStreamEvent) => {
     console.log("Message received", messageEvent);
+
+    // Update rawMessages
+    setRawMessages((prevRawMessages) => [...prevRawMessages, messageEvent]);
+
+    // Update accumulatedMessages (existing logic)
+    setAccumulatedMessages((prevMessages) => {
+      const newMessages = [...prevMessages];
+      if (messageEvent.role === "persona" && newMessages.length > 0) {
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (
+          lastMessage.role === "persona" &&
+          lastMessage.id === messageEvent.id
+        ) {
     
     // Update rawMessages
     setRawMessages(prevRawMessages => [...prevRawMessages, messageEvent]);
@@ -114,6 +169,16 @@ export default function ChatRoomPage() {
     setAccumulatedMessages(messages);
     // Update rawMessages with the full message history
     setRawMessages(messages);
+    setAccumulatedMessages(messages);
+    // Update rawMessages with the full message history
+    setRawMessages(messages);
+  };
+
+  const debouncedStartConversation = debounce(async () => {
+    if (
+      conversationState !== ConversationState.INACTIVE ||
+      anamClient.isStreaming()
+    ) {
   };
 
   const debouncedStartConversation = debounce(async () => {
@@ -123,6 +188,55 @@ export default function ChatRoomPage() {
     setConversationState(ConversationState.LOADING);
     try {
       // Remove all existing listeners before adding new ones
+      anamClient.removeListener(
+        AnamEvent.CONNECTION_ESTABLISHED,
+        onConnectionEstablished
+      );
+      anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.removeListener(
+        AnamEvent.CONNECTION_CLOSED,
+        onConnectionClosed
+      );
+      anamClient.removeListener(
+        AnamEvent.VIDEO_PLAY_STARTED,
+        onVideoStartedPlaying
+      );
+      anamClient.removeListener(
+        AnamEvent.VIDEO_STREAM_STARTED,
+        onVideoStartedStreaming
+      );
+      anamClient.removeListener(
+        AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+        onMessageReceived
+      );
+      anamClient.removeListener(
+        AnamEvent.MESSAGE_HISTORY_UPDATED,
+        onMessageHistoryUpdated
+      );
+
+      // Add listeners
+      anamClient.addListener(
+        AnamEvent.CONNECTION_ESTABLISHED,
+        onConnectionEstablished
+      );
+      anamClient.addListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.addListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+      anamClient.addListener(
+        AnamEvent.VIDEO_PLAY_STARTED,
+        onVideoStartedPlaying
+      );
+      anamClient.addListener(
+        AnamEvent.VIDEO_STREAM_STARTED,
+        onVideoStartedStreaming
+      );
+      anamClient.addListener(
+        AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+        onMessageReceived
+      );
+      anamClient.addListener(
+        AnamEvent.MESSAGE_HISTORY_UPDATED,
+        onMessageHistoryUpdated
+      );
       anamClient.removeListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
       anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
       anamClient.removeListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
@@ -161,6 +275,55 @@ export default function ChatRoomPage() {
     setDiagnosticReport(null);
     try {
       // Remove all existing listeners before adding new ones
+      anamClient.removeListener(
+        AnamEvent.CONNECTION_ESTABLISHED,
+        onConnectionEstablished
+      );
+      anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.removeListener(
+        AnamEvent.CONNECTION_CLOSED,
+        onConnectionClosed
+      );
+      anamClient.removeListener(
+        AnamEvent.VIDEO_PLAY_STARTED,
+        onVideoStartedPlaying
+      );
+      anamClient.removeListener(
+        AnamEvent.VIDEO_STREAM_STARTED,
+        onVideoStartedStreaming
+      );
+      anamClient.removeListener(
+        AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+        onMessageReceived
+      );
+      anamClient.removeListener(
+        AnamEvent.MESSAGE_HISTORY_UPDATED,
+        onMessageHistoryUpdated
+      );
+
+      // Add listeners
+      anamClient.addListener(
+        AnamEvent.CONNECTION_ESTABLISHED,
+        onConnectionEstablished
+      );
+      anamClient.addListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.addListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+      anamClient.addListener(
+        AnamEvent.VIDEO_PLAY_STARTED,
+        onVideoStartedPlaying
+      );
+      anamClient.addListener(
+        AnamEvent.VIDEO_STREAM_STARTED,
+        onVideoStartedStreaming
+      );
+      anamClient.addListener(
+        AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+        onMessageReceived
+      );
+      anamClient.addListener(
+        AnamEvent.MESSAGE_HISTORY_UPDATED,
+        onMessageHistoryUpdated
+      );
       anamClient.removeListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
       anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
       anamClient.removeListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
@@ -194,25 +357,40 @@ export default function ChatRoomPage() {
   const stopConversation = () => {
     debouncedStartConversation.cancel(); // Cancel any pending start attempts
     anamClient.stopStreaming();
-    
+
     // Remove all listeners
-    anamClient.removeListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+    anamClient.removeListener(
+      AnamEvent.CONNECTION_ESTABLISHED,
+      onConnectionEstablished
+    );
     anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
     anamClient.removeListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
-    anamClient.removeListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
-    anamClient.removeListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
-    anamClient.removeListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
-    anamClient.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+    anamClient.removeListener(
+      AnamEvent.VIDEO_PLAY_STARTED,
+      onVideoStartedPlaying
+    );
+    anamClient.removeListener(
+      AnamEvent.VIDEO_STREAM_STARTED,
+      onVideoStartedStreaming
+    );
+    anamClient.removeListener(
+      AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+      onMessageReceived
+    );
+    anamClient.removeListener(
+      AnamEvent.MESSAGE_HISTORY_UPDATED,
+      onMessageHistoryUpdated
+    );
 
     toast({
       title: "Conversation Stopped",
       description: "The conversation has been stopped.",
     });
     setConversationState(ConversationState.INACTIVE);
-    
+
     // Reset session duration
     setSessionDuration(0);
-    
+
     // Clear message history
     setAccumulatedMessages([]);
     setRawMessages([]);
@@ -223,36 +401,74 @@ export default function ChatRoomPage() {
     // Turn off the microphone
     setMicEnabled(false);
     anamClient.muteInputAudio();
-    
+
     // Stop the camera
     if (userVideoRef.current && userVideoRef.current.srcObject) {
-      const tracks = (userVideoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
+      const tracks = (
+        userVideoRef.current.srcObject as MediaStream
+      ).getTracks();
+      tracks.forEach((track) => track.stop());
       userVideoRef.current.srcObject = null;
     }
   };
 
-  const getAIResponse = async () => {
-    if (rawMessages.length === 0) {
-      const bufferTime = 2000;
-      const startTime = Date.now();
-      
-      while (Date.now() - startTime < bufferTime) {
-        if (rawMessages.length > 0) {
-          break; 
-        }
-        await new Promise(resolve => setTimeout(resolve, 100)); 
-      }
-
-      if (rawMessages.length === 0) {
-        console.log("No messages received after 2-second buffer. Aborting AI response.");
-        return;
-      }
+  const getAIClassification = async () => {
+    const messagesAvailable = await waitForMessages();
+    if (!messagesAvailable) {
+      console.log("Aborting AI response due to no messages.");
+      return;
     }
 
     const allLines = rawMessages
       .map((message: Message) => message.content)
       .join("\n");
+
+    try {
+      const response = await fetch("/api/classify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          patientInput: allLines,
+          previousPictureAnalysis: previousPictureAnalysis,
+        }),
+      });
+
+      const { needsPicture } = await response.json();
+
+      if (needsPicture) {
+        anamClient.talk(
+          "To help me better understand your condition, could I please see a picture of it?"
+        );
+        setAiPictureDialogOpen(true);
+      } else {
+        getAIResponse();
+      }
+    } catch (error) {
+      console.error("Error getting AI classification:", error);
+    }
+  };
+
+  const handlePictureAnalysis = (pictureAnalysis: string | null = null) => {
+    setPreviousPictureAnalysis(pictureAnalysis);
+    getAIResponse(pictureAnalysis);
+  };
+
+  const getAIResponse = useCallback(async (pictureAnalysis: string | null = null) => {
+    const messagesAvailable = await waitForMessages();
+    if (!messagesAvailable) {
+      console.log("Aborting AI response due to no messages.");
+      return;
+    }
+
+    let allLines = rawMessages
+      .map((message: Message) => message.content)
+      .join("\n");
+
+    if (pictureAnalysis) {
+      allLines += `\n\nHere is a description of a picture of the condition: ${pictureAnalysis}`;
+    }
 
     try {
       const response = await fetch("/api/chat", {
@@ -307,15 +523,13 @@ export default function ChatRoomPage() {
         variant: "destructive",
       });
     }
-  };
+  }, [rawMessages, waitForMessages, conversationState, anamClient, startConversation, toast]);
 
   const onMicTriggered = () => {
     if (micIsEnabled) {
       setMicEnabled(false);
       anamClient.muteInputAudio();
-      console.log("Getting AI response", accumulatedMessages);
-
-      getAIResponse();
+      getAIClassification();
     } else {
       setMicEnabled(true);
       anamClient.unmuteInputAudio();
@@ -363,17 +577,20 @@ export default function ChatRoomPage() {
 
   useEffect(() => {
     if (conversationState === ConversationState.ACTIVE) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then((stream) => {
           if (userVideoRef.current) {
             userVideoRef.current.srcObject = stream;
           }
         })
-        .catch(err => console.error("Error accessing camera:", err));
+        .catch((err) => console.error("Error accessing camera:", err));
     } else {
       if (userVideoRef.current && userVideoRef.current.srcObject) {
-        const tracks = (userVideoRef.current.srcObject as MediaStream).getTracks();
-        tracks.forEach(track => track.stop());
+        const tracks = (
+          userVideoRef.current.srcObject as MediaStream
+        ).getTracks();
+        tracks.forEach((track) => track.stop());
       }
     }
   }, [conversationState]);
@@ -387,13 +604,24 @@ export default function ChatRoomPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-2xl font-light text-green-700">Talk to Aria</CardTitle>
               <div className="flex items-center space-x-2">
-                <Badge variant={conversationState === ConversationState.ACTIVE ? "default" : "secondary"}>
-                  {conversationState === ConversationState.ACTIVE ? "Active" : 
-                   conversationState === ConversationState.LOADING ? "Connecting..." : "Inactive"}
+                <Badge
+                  variant={
+                    conversationState === ConversationState.ACTIVE
+                      ? "default"
+                      : "secondary"
+                  }
+                >
+                  {conversationState === ConversationState.ACTIVE
+                    ? "Active"
+                    : conversationState === ConversationState.LOADING
+                    ? "Connecting..."
+                    : "Inactive"}
                 </Badge>
                 {conversationState === ConversationState.ACTIVE && (
                   <Badge variant="outline" className="text-green-700">
-                    {new Date(sessionDuration * 1000).toISOString().substr(11, 8)}
+                    {new Date(sessionDuration * 1000)
+                      .toISOString()
+                      .substr(11, 8)}
                   </Badge>
                 )}
               </div>
@@ -404,7 +632,7 @@ export default function ChatRoomPage() {
                 <div className="rounded-lg bg-transparent overflow-hidden h-full p-3">
                   <AvatarPlayer />
                 </div>
-              }
+              )}
               {conversationState === ConversationState.INACTIVE && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center max-w-md mx-auto px-4">
@@ -417,10 +645,13 @@ export default function ChatRoomPage() {
                         className="rounded-full border-4 border-green-100"
                       />
                     </div>
-                    <h3 className="text-2xl font-semibold text-green-700 mb-3">Hi, I&apos;m Aria</h3>
+                    <h3 className="text-2xl font-semibold text-green-700 mb-3">
+                      Hi, I&apos;m Aria
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      I&apos;m here to listen and chat whenever you&apos;re ready. 
-                      Feel free to start our session when you&apos;re comfortable.
+                      I&apos;m here to listen and chat whenever you&apos;re
+                      ready. Feel free to start our session when you&apos;re
+                      comfortable.
                     </p>
                   </div>
                 </div>
@@ -473,14 +704,14 @@ export default function ChatRoomPage() {
                     </div>
                   ) : (
                     accumulatedMessages.map((message, index) => (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className={`flex items-start space-x-3 p-3 rounded-lg ${
-                          message.role === 'user' ? 'bg-green-50' : 'bg-blue-50'
+                          message.role === "user" ? "bg-green-50" : "bg-blue-50"
                         }`}
                       >
                         <div className="flex-shrink-0 mt-1">
-                          {message.role === 'user' ? (
+                          {message.role === "user" ? (
                             <MessageSquare className="w-5 h-5 text-green-700" />
                           ) : (
                             <Image
@@ -551,7 +782,9 @@ export default function ChatRoomPage() {
                         setRawMessages([]);
                         if (conversationState === ConversationState.ACTIVE) {
                           stopConversation();
-                        } else if (conversationState === ConversationState.INACTIVE) {
+                        } else if (
+                          conversationState === ConversationState.INACTIVE
+                        ) {
                           startConversation();
                         }
                       }}
@@ -593,7 +826,9 @@ export default function ChatRoomPage() {
                       size="lg"
                       className={cn(
                         "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
-                        micIsEnabled ? "bg-green-700 text-white hover:bg-green-800" : "text-green-700 hover:bg-green-50"
+                        micIsEnabled
+                          ? "bg-green-700 text-white hover:bg-green-800"
+                          : "text-green-700 hover:bg-green-50"
                       )}
                       onClick={onMicTriggered}
                       disabled={conversationState !== ConversationState.ACTIVE}
@@ -612,7 +847,41 @@ export default function ChatRoomPage() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {micIsEnabled ? "Unmute your microphone" : "Mute your microphone"}
+                    {micIsEnabled
+                      ? "Unmute your microphone"
+                      : "Mute your microphone"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className={cn(
+                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        generatingReport ? "bg-green-700 text-white hover:bg-green-800" : "text-green-700 hover:bg-green-50"
+                      )}
+                      onClick={onGenerateReport}
+                      disabled={conversationState !== ConversationState.ACTIVE || generatingReport}
+                    >
+                      {generatingReport ? (
+                        <>
+                          <LoaderIcon className="w-6 h-6 mr-2 animate-spin" />
+                          Generating Report
+                        </>
+                      ) : (
+                        <>
+                          <SquareActivity className="w-6 h-6 mr-2" />
+                          Diagnostic Report 
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Generate a diagnostic report based on your conversation with Aria
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -651,6 +920,11 @@ export default function ChatRoomPage() {
             </div>
           </CardContent>
         </Card>
+        <AiPictureDialog
+          open={aiPictureDialogOpen}
+          setOpen={setAiPictureDialogOpen}
+          pictureDescriptionCallback={handlePictureAnalysis}
+        />
       </main>
     </Navbar>
   );
