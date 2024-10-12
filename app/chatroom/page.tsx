@@ -417,24 +417,11 @@ export default function ChatRoomPage() {
     getAIResponse(pictureAnalysis);
   };
 
-  const getAIResponse = async (pictureAnalysis: string | null = null) => {
-    if (rawMessages.length === 0) {
-      const bufferTime = 2000;
-      const startTime = Date.now();
-
-      while (Date.now() - startTime < bufferTime) {
-        if (rawMessages.length > 0) {
-          break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-
-      if (rawMessages.length === 0) {
-        console.log(
-          "No messages received after 2-second buffer. Aborting AI response."
-        );
-        return;
-      }
+  const getAIResponse = useCallback(async (pictureAnalysis: string | null = null) => {
+    const messagesAvailable = await waitForMessages();
+    if (!messagesAvailable) {
+      console.log("Aborting AI response due to no messages.");
+      return;
     }
 
     let allLines = rawMessages
@@ -605,11 +592,11 @@ export default function ChatRoomPage() {
             </CardHeader>
             <Separator className="my-2" />
             <CardContent className="p-0 h-[calc(60vh-80px)] bg-transparent">
-              {/* {conversationState !== ConversationState.INACTIVE &&
+              {conversationState !== ConversationState.INACTIVE && (
                 <div className="rounded-lg bg-transparent overflow-hidden h-full p-3">
                   <AvatarPlayer />
                 </div>
-              )} */}
+              )}
               {conversationState === ConversationState.INACTIVE && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center max-w-md mx-auto px-4">
@@ -835,44 +822,6 @@ export default function ChatRoomPage() {
                     {micIsEnabled
                       ? "Unmute your microphone"
                       : "Mute your microphone"}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className={cn(
-                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
-                        generatingReport
-                          ? "bg-green-700 text-white hover:bg-green-800"
-                          : "text-green-700 hover:bg-green-50"
-                      )}
-                      onClick={onGenerateReport}
-                      disabled={
-                        conversationState !== ConversationState.ACTIVE ||
-                        generatingReport
-                      }
-                    >
-                      {generatingReport ? (
-                        <>
-                          <LoaderIcon className="w-6 h-6 mr-2 animate-spin" />
-                          Generating Report
-                        </>
-                      ) : (
-                        <>
-                          <SquareActivity className="w-6 h-6 mr-2" />
-                          Diagnostic Report
-                        </>
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Generate a diagnostic report based on your conversation with
-                    Aria
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
