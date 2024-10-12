@@ -83,6 +83,7 @@ export default function ChatRoomPage() {
     ConversationState.INACTIVE
   );
   // const [isHarkSupported, setIsHarkSupported] = useState(false);
+  const [isInterrupted, setIsInterrupted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [stopHark, setStopHark] = useState<() => void | undefined>(() => {});
   const [micIsEnabled, setMicEnabled] = useState(false);
@@ -198,6 +199,10 @@ export default function ChatRoomPage() {
 
   const onMessageReceived = useCallback((messageEvent: MessageStreamEvent) => {
     console.log("Message received", messageEvent);
+
+    if (messageEvent.interrupted) {
+      setIsInterrupted(true);
+    }
 
     setRawMessages((prevRawMessages) => {
       const newMessages = [...prevRawMessages, messageEvent];
@@ -561,15 +566,26 @@ export default function ChatRoomPage() {
       return;
     }
 
-    const isLastMessageInterrupted =
-      rawMessagesRef.current?.findLast((message) => message.role === "persona")
-        ?.interrupted ?? false;
+    const isLastMessageInterrupted = [
+      rawMessagesRef.current,
+      rawMessages,
+      accumulatedMessages,
+    ].some(
+      (messages) =>
+        messages?.findLast((m) => m.role === "persona")?.interrupted ?? false
+    );
 
-    if (isLastMessageInterrupted) {
+    if (isLastMessageInterrupted || isInterrupted) {
+      console.log("Interruption took place");
+      setIsInterrupted(false);
       anamClient.talk("Don't interrupt me.");
       getAIResponse();
       return;
+    } else {
+      console.log("No interruption took place");
     }
+
+    setIsInterrupted(false);
 
     const allLines = rawMessagesRef.current
       .map((message: Message) => message.content)
