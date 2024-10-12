@@ -45,6 +45,7 @@ export const AnamContextProvider = ({
       disableBrains: DISABLE_BRAINS,
       disableFillerPhrases: DISABLE_FILLER_PHRASES,
     });
+    console.log("Created client with session token");
     return (
       <AnamContext.Provider
         value={{ anamClient: client, sessionToken, apiKey }}
@@ -58,6 +59,7 @@ export const AnamContextProvider = ({
       disableBrains: DISABLE_BRAINS,
       disableFillerPhrases: DISABLE_FILLER_PHRASES,
     });
+    console.log("Created client with API key");
     return (
       <AnamContext.Provider
         value={{ anamClient: client, sessionToken, apiKey }}

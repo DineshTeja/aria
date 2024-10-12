@@ -63,6 +63,10 @@ export default function ChatRoomPage() {
     setConversationState(ConversationState.ACTIVE);
   };
 
+  const onAudioStarted = () => {
+    console.log("Audio started");
+  };
+
   const startConversation = async () => {
     if (
       !(
@@ -77,6 +81,7 @@ export default function ChatRoomPage() {
       AnamEvent.CONNECTION_ESTABLISHED,
       onConnectionEstablished
     );
+    anamClient.addListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
     anamClient.addListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
     anamClient.addListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
     anamClient.addListener(
@@ -85,12 +90,8 @@ export default function ChatRoomPage() {
     );
     try {
       console.log("Starting conversation");
+      console.log(anamClient.isStreaming());
       await anamClient.streamToVideoAndAudioElements("video", "audio");
-      toast({
-        title: "Conversation Started",
-        description: "The conversation has been started.",
-      });
-      setConversationState(ConversationState.ACTIVE);
     } catch (error: unknown) {
       if (error instanceof Error) {
         toast({
@@ -118,11 +119,11 @@ export default function ChatRoomPage() {
     setConversationState(ConversationState.INACTIVE);
   };
 
-  useEffect(() => {
-    return () => {
-      stopConversation();
-    };
-  }, []);
+  // useEffect(() => {
+  //   return () => {
+  //     stopConversation();
+  //   };
+  // }, []);
 
   return (
     <div className="h-screen w-screen bg-zinc-900 flex flex-col">
@@ -133,7 +134,13 @@ export default function ChatRoomPage() {
         </div>
         <div className="h-full w-full rounded-lg bg-zinc-800 text-white">
           {conversationState === ConversationState.ACTIVE ? (
-            <AvatarPlayer />
+            <div
+              id="video-container"
+              className="justify-center flex bg-grey-400 border-none w-[512px] h-[512px] rounded-xl overflow-hidden"
+            >
+              <video id="video" width="100%" autoPlay playsInline></video>
+              <audio id="audio" autoPlay></audio>
+            </div>
           ) : conversationState === ConversationState.LOADING ? (
             <div className="flex items-center justify-center h-full">
               <LoaderIcon className="w-7 h-7 animate-spin" />
