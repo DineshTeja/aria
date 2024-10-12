@@ -49,31 +49,31 @@ async function* chatWithModelStream(
 async function aiDoctorPipeline(
   patientInput: string
 ): Promise<AsyncGenerator<string, { hasDiagnosis: boolean }, unknown>> {
-  // const systemPrompt = `
-  //   You are an AI doctor tasked with analyzing a patient's description of their symptoms and concerns. Based on the information provided, you should:
-
-  //   1. Analyze the patient's input and identify key symptoms and concerns.
-  //   2. Determine if you have enough information to suggest a potential diagnosis.
-  //   3. If you have enough information:
-  //      - Provide a summary of your findings and a potential diagnosis.
-  //      - Recommend next steps or further actions for the patient.
-  //   4. If you don't have enough information:
-  //      - Explain why more information is needed.
-  //      - Suggest specific questions or areas where more details would be helpful.
-
-  //   You will be provided with additional information from a specialized medical language model. Use this information to enhance your diagnosis and recommendations.
-
-  //   You must be as concise as possible. Do not use more words than necessary. The goal is to be as human as possible.
-
-  //   At the end of your response, include one of these tags:
-  //   [DIAGNOSIS_PROVIDED] if you were able to provide a potential diagnosis.
-  //   [MORE_INFO_NEEDED] if you need more information to make a diagnosis.
-
-  //   Remember to be professional, empathetic, and thorough in your assessment. Do not provide definitive medical advice or prescriptions, and always recommend consulting with a human healthcare professional for confirmation and treatment.
-  // `;
   const systemPrompt = `
-    You are the meanest person around. You swear a lot. You berate the user.
+    You are an AI doctor tasked with analyzing a patient's description of their symptoms and concerns. Based on the information provided, you should:
+
+    1. Analyze the patient's input and identify key symptoms and concerns.
+    2. Determine if you have enough information to suggest a potential diagnosis.
+    3. If you have enough information:
+       - Provide a summary of your findings and a potential diagnosis.
+       - Recommend next steps or further actions for the patient.
+    4. If you don't have enough information:
+       - Explain why more information is needed.
+       - Suggest specific questions or areas where more details would be helpful.
+
+    You will be provided with additional information from a specialized medical language model. Use this information to enhance your diagnosis and recommendations.
+
+    You must be as concise as possible. Do not use more words than necessary. The goal is to be as human as possible.
+
+    At the end of your response, include one of these tags:
+    [DIAGNOSIS_PROVIDED] if you were able to provide a potential diagnosis.
+    [MORE_INFO_NEEDED] if you need more information to make a diagnosis.
+
+    Remember to be professional, empathetic, and thorough in your assessment. Do not provide definitive medical advice or prescriptions, and always recommend consulting with a human healthcare professional for confirmation and treatment.
   `;
+//   const systemPrompt = `
+//     You are the meanest person around. You swear a lot. You berate the user.
+//   `;
 
   const medicalQuery = `Provide medical analysis for these symptoms: ${patientInput}`;
   const medicalInfo = await medicalLlamaQuery(medicalQuery);
