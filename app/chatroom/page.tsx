@@ -2,7 +2,15 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LoaderIcon, Mic, MicOff, Phone, PhoneOff, MessageSquare, SquareActivity } from "lucide-react";
+import {
+  LoaderIcon,
+  Mic,
+  MicOff,
+  Phone,
+  PhoneOff,
+  MessageSquare,
+  SquareActivity,
+} from "lucide-react";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAnam } from "../contexts/AnamContext";
 import {
@@ -28,9 +36,6 @@ import AiPictureDialog from "@/components/ui/ai-picture-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import Markdown from "react-markdown";
 import { debounce } from "lodash";
-import { Skeleton } from "@/components/ui/skeleton";
-import Markdown from "react-markdown";
-import { debounce } from 'lodash';
 
 // Add this enum definition
 enum ConversationState {
@@ -48,15 +53,15 @@ const useWaitForMessages = (messages: Message[]) => {
       console.log("Waiting for messages...");
       const bufferTime = 2000;
       const startTime = Date.now();
-      
+
       while (Date.now() - startTime < bufferTime) {
         if (messages.length > 0) {
           setHasMessages(true);
           return true;
         }
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      
+
       console.log("No messages received after 2-second buffer.");
       return false;
     }
@@ -143,16 +148,6 @@ export default function ChatRoomPage() {
           lastMessage.role === "persona" &&
           lastMessage.id === messageEvent.id
         ) {
-    
-    // Update rawMessages
-    setRawMessages(prevRawMessages => [...prevRawMessages, messageEvent]);
-    
-    // Update accumulatedMessages (existing logic)
-    setAccumulatedMessages(prevMessages => {
-      const newMessages = [...prevMessages];
-      if (messageEvent.role === 'persona' && newMessages.length > 0) {
-        const lastMessage = newMessages[newMessages.length - 1];
-        if (lastMessage.role === 'persona' && lastMessage.id === messageEvent.id) {
           if (!lastMessage.content.endsWith(messageEvent.content)) {
             lastMessage.content += messageEvent.content;
           }
@@ -179,10 +174,6 @@ export default function ChatRoomPage() {
       conversationState !== ConversationState.INACTIVE ||
       anamClient.isStreaming()
     ) {
-  };
-
-  const debouncedStartConversation = debounce(async () => {
-    if (conversationState !== ConversationState.INACTIVE || anamClient.isStreaming()) {
       return;
     }
     setConversationState(ConversationState.LOADING);
@@ -237,22 +228,55 @@ export default function ChatRoomPage() {
         AnamEvent.MESSAGE_HISTORY_UPDATED,
         onMessageHistoryUpdated
       );
-      anamClient.removeListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.removeListener(
+        AnamEvent.CONNECTION_ESTABLISHED,
+        onConnectionEstablished
+      );
       anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
-      anamClient.removeListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
-      anamClient.removeListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
-      anamClient.removeListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
-      anamClient.removeListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
-      anamClient.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+      anamClient.removeListener(
+        AnamEvent.CONNECTION_CLOSED,
+        onConnectionClosed
+      );
+      anamClient.removeListener(
+        AnamEvent.VIDEO_PLAY_STARTED,
+        onVideoStartedPlaying
+      );
+      anamClient.removeListener(
+        AnamEvent.VIDEO_STREAM_STARTED,
+        onVideoStartedStreaming
+      );
+      anamClient.removeListener(
+        AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+        onMessageReceived
+      );
+      anamClient.removeListener(
+        AnamEvent.MESSAGE_HISTORY_UPDATED,
+        onMessageHistoryUpdated
+      );
 
       // Add listeners
-      anamClient.addListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.addListener(
+        AnamEvent.CONNECTION_ESTABLISHED,
+        onConnectionEstablished
+      );
       anamClient.addListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
       anamClient.addListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
-      anamClient.addListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
-      anamClient.addListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
-      anamClient.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
-      anamClient.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+      anamClient.addListener(
+        AnamEvent.VIDEO_PLAY_STARTED,
+        onVideoStartedPlaying
+      );
+      anamClient.addListener(
+        AnamEvent.VIDEO_STREAM_STARTED,
+        onVideoStartedStreaming
+      );
+      anamClient.addListener(
+        AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+        onMessageReceived
+      );
+      anamClient.addListener(
+        AnamEvent.MESSAGE_HISTORY_UPDATED,
+        onMessageHistoryUpdated
+      );
 
       await anamClient.streamToVideoAndAudioElements("video", "audio");
     } catch (error) {
@@ -324,22 +348,55 @@ export default function ChatRoomPage() {
         AnamEvent.MESSAGE_HISTORY_UPDATED,
         onMessageHistoryUpdated
       );
-      anamClient.removeListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.removeListener(
+        AnamEvent.CONNECTION_ESTABLISHED,
+        onConnectionEstablished
+      );
       anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
-      anamClient.removeListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
-      anamClient.removeListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
-      anamClient.removeListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
-      anamClient.removeListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
-      anamClient.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+      anamClient.removeListener(
+        AnamEvent.CONNECTION_CLOSED,
+        onConnectionClosed
+      );
+      anamClient.removeListener(
+        AnamEvent.VIDEO_PLAY_STARTED,
+        onVideoStartedPlaying
+      );
+      anamClient.removeListener(
+        AnamEvent.VIDEO_STREAM_STARTED,
+        onVideoStartedStreaming
+      );
+      anamClient.removeListener(
+        AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+        onMessageReceived
+      );
+      anamClient.removeListener(
+        AnamEvent.MESSAGE_HISTORY_UPDATED,
+        onMessageHistoryUpdated
+      );
 
       // Add listeners
-      anamClient.addListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.addListener(
+        AnamEvent.CONNECTION_ESTABLISHED,
+        onConnectionEstablished
+      );
       anamClient.addListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
       anamClient.addListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
-      anamClient.addListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
-      anamClient.addListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
-      anamClient.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
-      anamClient.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+      anamClient.addListener(
+        AnamEvent.VIDEO_PLAY_STARTED,
+        onVideoStartedPlaying
+      );
+      anamClient.addListener(
+        AnamEvent.VIDEO_STREAM_STARTED,
+        onVideoStartedStreaming
+      );
+      anamClient.addListener(
+        AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+        onMessageReceived
+      );
+      anamClient.addListener(
+        AnamEvent.MESSAGE_HISTORY_UPDATED,
+        onMessageHistoryUpdated
+      );
 
       await anamClient.streamToVideoAndAudioElements("video", "audio");
       setConversationState(ConversationState.ACTIVE);
@@ -397,7 +454,7 @@ export default function ChatRoomPage() {
 
     setGeneratingReport(false);
     setDiagnosticReport(null);
-    
+
     // Turn off the microphone
     setMicEnabled(false);
     anamClient.muteInputAudio();
@@ -455,75 +512,85 @@ export default function ChatRoomPage() {
     getAIResponse(pictureAnalysis);
   };
 
-  const getAIResponse = useCallback(async (pictureAnalysis: string | null = null) => {
-    const messagesAvailable = await waitForMessages();
-    if (!messagesAvailable) {
-      console.log("Aborting AI response due to no messages.");
-      return;
-    }
-
-    let allLines = rawMessages
-      .map((message: Message) => message.content)
-      .join("\n");
-
-    if (pictureAnalysis) {
-      allLines += `\n\nHere is a description of a picture of the condition: ${pictureAnalysis}`;
-    }
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ patientInput: allLines }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+  const getAIResponse = useCallback(
+    async (pictureAnalysis: string | null = null) => {
+      const messagesAvailable = await waitForMessages();
+      if (!messagesAvailable) {
+        console.log("Aborting AI response due to no messages.");
+        return;
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("Response body is not readable");
+      let allLines = rawMessages
+        .map((message: Message) => message.content)
+        .join("\n");
+
+      if (pictureAnalysis) {
+        allLines += `\n\nHere is a description of a picture of the condition: ${pictureAnalysis}`;
       }
 
-      let aiResponse = "";
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ patientInput: allLines }),
+        });
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          break;
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const chunk = new TextDecoder().decode(value);
-        aiResponse += chunk;
-      }
 
-      console.log("Complete AI response:", aiResponse);
-      
-      // Check if the session is active before calling talk
-      if (conversationState === ConversationState.ACTIVE) {
-        try {
-          await anamClient.talk(aiResponse);
-        } catch (talkError) {
-          console.error("Error calling anamClient.talk:", talkError);
-          // Attempt to restart the session
-          await startConversation();
-          // Try talking again after restarting
-          await anamClient.talk(aiResponse);
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("Response body is not readable");
         }
-      } else {
-        console.warn("Cannot call talk: Conversation is not active");
+
+        let aiResponse = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          const chunk = new TextDecoder().decode(value);
+          aiResponse += chunk;
+        }
+
+        console.log("Complete AI response:", aiResponse);
+
+        // Check if the session is active before calling talk
+        if (conversationState === ConversationState.ACTIVE) {
+          try {
+            await anamClient.talk(aiResponse);
+          } catch (talkError) {
+            console.error("Error calling anamClient.talk:", talkError);
+            // Attempt to restart the session
+            await startConversation();
+            // Try talking again after restarting
+            await anamClient.talk(aiResponse);
+          }
+        } else {
+          console.warn("Cannot call talk: Conversation is not active");
+        }
+      } catch (error) {
+        console.error("Error getting AI response:", error);
+        toast({
+          title: "Error",
+          description: "Failed to get AI response",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      console.error("Error getting AI response:", error);
-      toast({
-        title: "Error",
-        description: "Failed to get AI response",
-        variant: "destructive",
-      });
-    }
-  }, [rawMessages, waitForMessages, conversationState, anamClient, startConversation, toast]);
+    },
+    [
+      rawMessages,
+      waitForMessages,
+      conversationState,
+      anamClient,
+      startConversation,
+      toast,
+    ]
+  );
 
   const onMicTriggered = () => {
     if (micIsEnabled) {
@@ -602,7 +669,9 @@ export default function ChatRoomPage() {
           {/* Aria Card */}
           <Card className="text-card-foreground lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-2xl font-light text-green-700">Talk to Aria</CardTitle>
+              <CardTitle className="text-2xl font-light text-green-700">
+                Talk to Aria
+              </CardTitle>
               <div className="flex items-center space-x-2">
                 <Badge
                   variant={
@@ -628,8 +697,8 @@ export default function ChatRoomPage() {
             </CardHeader>
             <Separator className="my-2" />
             <CardContent className="p-0 h-[calc(60vh-80px)] bg-transparent">
-              {conversationState !== ConversationState.INACTIVE &&
-                <div className="rounded-lg bg-transparent overflow-hidden h-full p-3">
+              {conversationState !== ConversationState.INACTIVE && (
+                <div className="flex items-center justify-center h-full">
                   <AvatarPlayer />
                 </div>
               )}
@@ -662,7 +731,9 @@ export default function ChatRoomPage() {
           {/* Patient Interaction Card */}
           <Card className="bg-card text-card-foreground">
             <CardHeader className="pb-2">
-              <CardTitle className="text-2xl font-light text-green-700">Transcription</CardTitle>
+              <CardTitle className="text-2xl font-light text-green-700">
+                Transcription
+              </CardTitle>
             </CardHeader>
             <Separator className="my-2" />
             <CardContent className="p-4 h-[calc(60vh-80px)] flex flex-col">
@@ -693,9 +764,18 @@ export default function ChatRoomPage() {
                         />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-blue-800">Aria</p>
+                        <p className="text-sm font-semibold text-blue-800">
+                          Aria
+                        </p>
                         <p className="text-sm text-blue-700 leading-relaxed mt-1">
-                          Hey there! I&apos;m Aria, your AI health assistant. I&apos;m here to listen, provide information, and offer guidance on general health topics. Feel free to ask me about symptoms, wellness tips, or any health-related questions you might have. Remember, I&apos;m here to support you, but for specific medical advice, always consult with a qualified healthcare professional.
+                          Hey there! I&apos;m Aria, your AI health assistant.
+                          I&apos;m here to listen, provide information, and
+                          offer guidance on general health topics. Feel free to
+                          ask me about symptoms, wellness tips, or any
+                          health-related questions you might have. Remember,
+                          I&apos;m here to support you, but for specific medical
+                          advice, always consult with a qualified healthcare
+                          professional.
                         </p>
                         <p className="text-sm text-blue-600 mt-2 italic">
                           How can I assist you with your health today?
@@ -724,14 +804,22 @@ export default function ChatRoomPage() {
                           )}
                         </div>
                         <div className="flex-1">
-                          <p className={`text-sm font-semibold ${
-                            message.role === 'user' ? 'text-green-800' : 'text-blue-800'
-                          }`}>
-                            {message.role === 'user' ? 'You' : 'Aria'}
+                          <p
+                            className={`text-sm font-semibold ${
+                              message.role === "user"
+                                ? "text-green-800"
+                                : "text-blue-800"
+                            }`}
+                          >
+                            {message.role === "user" ? "You" : "Aria"}
                           </p>
-                          <p className={`text-sm mt-1 ${
-                            message.role === 'user' ? 'text-green-700' : 'text-blue-700'
-                          }`}>
+                          <p
+                            className={`text-sm mt-1 ${
+                              message.role === "user"
+                                ? "text-green-700"
+                                : "text-blue-700"
+                            }`}
+                          >
                             {message.content}
                           </p>
                         </div>
@@ -747,13 +835,13 @@ export default function ChatRoomPage() {
           {diagnosticReport && (
             <Card className="bg-card text-card-foreground lg:col-span-3">
               <CardHeader className="pb-2">
-                <CardTitle className="text-2xl font-light text-green-700">Diagnostic Report</CardTitle>
+                <CardTitle className="text-2xl font-light text-green-700">
+                  Diagnostic Report
+                </CardTitle>
               </CardHeader>
               <Separator className="my-2" />
               <CardContent className="p-4 max-h-[60vh] overflow-y-auto">
-                <Markdown>
-                  {diagnosticReport}
-                </Markdown>
+                <Markdown>{diagnosticReport}</Markdown>
               </CardContent>
             </Card>
           )}
@@ -862,10 +950,15 @@ export default function ChatRoomPage() {
                       size="lg"
                       className={cn(
                         "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
-                        generatingReport ? "bg-green-700 text-white hover:bg-green-800" : "text-green-700 hover:bg-green-50"
+                        generatingReport
+                          ? "bg-green-700 text-white hover:bg-green-800"
+                          : "text-green-700 hover:bg-green-50"
                       )}
                       onClick={onGenerateReport}
-                      disabled={conversationState !== ConversationState.ACTIVE || generatingReport}
+                      disabled={
+                        conversationState !== ConversationState.ACTIVE ||
+                        generatingReport
+                      }
                     >
                       {generatingReport ? (
                         <>
@@ -875,13 +968,14 @@ export default function ChatRoomPage() {
                       ) : (
                         <>
                           <SquareActivity className="w-6 h-6 mr-2" />
-                          Diagnostic Report 
+                          Diagnostic Report
                         </>
                       )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    Generate a diagnostic report based on your conversation with Aria
+                    Generate a diagnostic report based on your conversation with
+                    Aria
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -894,10 +988,15 @@ export default function ChatRoomPage() {
                       size="lg"
                       className={cn(
                         "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
-                        generatingReport ? "bg-green-700 text-white hover:bg-green-800" : "text-green-700 hover:bg-green-50"
+                        generatingReport
+                          ? "bg-green-700 text-white hover:bg-green-800"
+                          : "text-green-700 hover:bg-green-50"
                       )}
                       onClick={onGenerateReport}
-                      disabled={conversationState !== ConversationState.ACTIVE || generatingReport}
+                      disabled={
+                        conversationState !== ConversationState.ACTIVE ||
+                        generatingReport
+                      }
                     >
                       {generatingReport ? (
                         <>
@@ -907,13 +1006,14 @@ export default function ChatRoomPage() {
                       ) : (
                         <>
                           <SquareActivity className="w-6 h-6 mr-2" />
-                          Diagnostic Report 
+                          Diagnostic Report
                         </>
                       )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    Generate a diagnostic report based on your conversation with Aria
+                    Generate a diagnostic report based on your conversation with
+                    Aria
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
