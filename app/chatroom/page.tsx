@@ -690,7 +690,7 @@ export default function ChatRoomPage() {
   };
 
   const UserVideoFeed = () => (
-    <div className="mb-4 h-48 relative">
+    <div className="mb-4 h-[220px] relative">
       {cameraEnabled ? (
         <video
           ref={userVideoRef}
@@ -700,13 +700,13 @@ export default function ChatRoomPage() {
           className="w-full h-full object-cover rounded-lg"
         />
       ) : (
-        <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
+        <div className={`${GeistSans.className} w-full h-full bg-gray-200 rounded-lg flex items-center justify-center`}>
           <Avatar>
             <AvatarFallback>DV</AvatarFallback>
           </Avatar>
         </div>
       )}
-      <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-sm">
+      <div className={`${GeistSans.className} absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-sm`}>
         You
       </div>
     </div>
@@ -755,6 +755,7 @@ export default function ChatRoomPage() {
                         ? "default"
                         : "secondary"
                     }
+                    className={`${GeistSans.className}`}  
                   >
                     {conversationState === ConversationState.ACTIVE
                       ? "Active"
@@ -817,7 +818,7 @@ export default function ChatRoomPage() {
                   variant="outline"
                   size="sm"
                   className={cn(
-                    "transition-all duration-200 w-full md:w-auto",
+                    `${GeistSans.className} transition-all duration-200 w-full md:w-auto`,
                     showDiagnosticReport
                       ? "text-green-700 hover:bg-green-50"
                       : "bg-green-700 text-white hover:bg-green-800"
@@ -856,7 +857,7 @@ export default function ChatRoomPage() {
                       <ScrollArea className="flex-grow overflow-y-auto">
                         <div className="space-y-4 pr-4">
                           {accumulatedMessages.length === 0 ? (
-                            <div className="flex items-start space-x-3 p-4 rounded-lg bg-blue-50">
+                            <div className="flex items-start space-x-3 p-4 rounded-lg bg-green-50">
                               <div className="flex-shrink-0">
                                 <Image
                                   src="/aria-avatar.png"
@@ -867,10 +868,10 @@ export default function ChatRoomPage() {
                                 />
                               </div>
                               <div className="flex-1">
-                                <p className="text-sm font-semibold text-blue-800">
+                                <p className="text-sm font-semibold text-green-800">
                                   Aria
                                 </p>
-                                <p className={`text-sm text-blue-700 leading-relaxed mt-1 ${GeistSans.className}`}>
+                                <p className={`text-sm text-green-700 leading-relaxed mt-1 ${GeistSans.className}`}>
                                   Hey there! I&apos;m Aria, your AI health assistant.
                                   I&apos;m here to listen, provide information, and
                                   offer guidance on general health topics. Feel free to
@@ -880,7 +881,7 @@ export default function ChatRoomPage() {
                                   advice, always consult with a qualified healthcare
                                   professional.
                                 </p>
-                                <p className={`text-sm text-blue-600 mt-2 italic ${GeistSans.className}`}>
+                                <p className={`text-sm text-green-700 mt-2 italic ${GeistSans.className}`}>
                                   How can I assist you with your health today?
                                 </p>
                               </div>
@@ -890,12 +891,12 @@ export default function ChatRoomPage() {
                               <div
                                 key={index}
                                 className={`flex items-start space-x-3 p-3 rounded-lg ${
-                                  message.role === "user" ? "bg-green-50" : "bg-blue-50"
+                                  message.role === "user" ? "bg-blue-50" : "bg-green-50"
                                 }`}
                               >
                                 <div className="flex-shrink-0 mt-1">
                                   {message.role === "user" ? (
-                                    <MessageSquare className="w-5 h-5 text-green-700" />
+                                    <MessageSquare className="w-5 h-5 text-blue-800" />
                                   ) : (
                                     <Image
                                       src="/aria-avatar.png"
@@ -910,8 +911,8 @@ export default function ChatRoomPage() {
                                   <p
                                     className={`text-sm font-semibold ${
                                       message.role === "user"
-                                        ? "text-green-800"
-                                        : "text-blue-800"
+                                        ? "text-blue-800"
+                                        : "text-green-800"
                                     }`}
                                   >
                                     {message.role === "user" ? "You" : "Aria"}
@@ -919,8 +920,8 @@ export default function ChatRoomPage() {
                                   <p
                                     className={`${GeistSans.className} text-sm mt-1 ${
                                       message.role === "user"
-                                        ? "text-green-700"
-                                        : "text-blue-700"
+                                        ? "text-blue-700"
+                                        : "text-green-700"
                                     }`}
                                   >
                                     {message.content}
