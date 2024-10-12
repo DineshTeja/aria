@@ -1,25 +1,14 @@
-import { supabase } from "@/lib/utils";
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { searchKnowledgeBase } from "./services";
 
 export async function POST(req: Request) {
   const { query } = await req.json();
 
-  const response = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: query,
-  });
+  const { data, status, error } = await searchKnowledgeBase(query);
 
-  const embedding = response.data[0].embedding;
-  const results = await supabase.rpc("match_documents", {
-    query_embedding: embedding.toString(),
-    match_threshold: 0.5,
-    match_count: 5,
-  });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status });
+  }
 
-  return NextResponse.json({ results });
+  return NextResponse.json({ data });
 }
