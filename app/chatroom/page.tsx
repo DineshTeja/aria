@@ -52,7 +52,7 @@ enum ConversationState {
 // Custom hook to check for messages
 const useWaitForMessages = (messagesRef: React.RefObject<Message[]>) => {
   const [hasMessages, setHasMessages] = useState(
-    messagesRef.current?.length > 0 ?? false
+    (messagesRef.current?.length || 0) > 0 ?? false
   );
 
   const waitForMessages = useCallback(async () => {
@@ -82,8 +82,10 @@ export default function ChatRoomPage() {
   const [conversationState, setConversationState] = useState<ConversationState>(
     ConversationState.INACTIVE
   );
+  const conversationStateRef = useRef<ConversationState>(
+    ConversationState.INACTIVE
+  );
   // const [isHarkSupported, setIsHarkSupported] = useState(false);
-  const [isInterrupted, setIsInterrupted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [stopHark, setStopHark] = useState<() => void | undefined>(() => {});
   const [micIsEnabled, setMicEnabled] = useState(false);
@@ -109,6 +111,11 @@ export default function ChatRoomPage() {
   // Add this new state to track if a session has started
   const [sessionStarted, setSessionStarted] = useState(false);
 
+  // Update the ref whenever conversationState changes
+  useEffect(() => {
+    conversationStateRef.current = conversationState;
+  }, [conversationState]);
+
   const onUserStartSpeaking = useCallback(() => {
     console.log("User started speaking");
     console.log(
@@ -127,8 +134,10 @@ export default function ChatRoomPage() {
     );
     console.log("(onUserStopSpeaking) rawMessages", rawMessages);
     setIsSpeaking(false);
-    setTimeout(() => getAIClassification(), 500);
-  }, [rawMessages]);
+    if (conversationStateRef.current === ConversationState.ACTIVE) {
+      setTimeout(() => getAIClassification(), 500);
+    }
+  }, [rawMessages, conversationStateRef, conversationState]);
 
   const startHark = async () => {
     try {
@@ -197,16 +206,11 @@ export default function ChatRoomPage() {
     console.log("Audio started");
   };
 
-  useEffect(() => {
-    console.log("isInterrupted changed", isInterrupted);
-  }, [isInterrupted]);
-
   const onMessageReceived = useCallback((messageEvent: MessageStreamEvent) => {
     console.log("Message received", messageEvent);
 
     if (messageEvent.interrupted) {
       console.log("Interruption detected");
-      setIsInterrupted(true);
     }
 
     setRawMessages((prevRawMessages) => {
@@ -571,27 +575,6 @@ export default function ChatRoomPage() {
       return;
     }
 
-    const isLastMessageInterrupted = [
-      rawMessagesRef.current,
-      rawMessages,
-      accumulatedMessages,
-    ].some(
-      (messages) =>
-        messages?.findLast((m) => m.role === "persona")?.interrupted ?? false
-    );
-
-    if (isLastMessageInterrupted || isInterrupted) {
-      console.log("Interruption took place");
-      setIsInterrupted(false);
-      anamClient.talk("Don't interrupt me.");
-      getAIResponse();
-      return;
-    } else {
-      console.log("No interruption took place");
-    }
-
-    setIsInterrupted(false);
-
     const allLines = rawMessagesRef.current
       .map((message: Message) => message.content)
       .join("\n");
@@ -641,7 +624,7 @@ export default function ChatRoomPage() {
         return;
       }
 
-      let allLines = rawMessages
+      let allLines = rawMessagesRef.current
         .map((message: Message) => message.content)
         .join("\n");
 
@@ -681,7 +664,7 @@ export default function ChatRoomPage() {
         console.log("Complete AI response:", aiResponse);
 
         // Check if the session is active before calling talk
-        if (conversationState === ConversationState.ACTIVE) {
+        if (conversationStateRef.current === ConversationState.ACTIVE) {
           try {
             await anamClient.talk(aiResponse);
           } catch (talkError) {
@@ -706,7 +689,7 @@ export default function ChatRoomPage() {
     [
       rawMessages,
       waitForMessages,
-      conversationState,
+      conversationStateRef,
       anamClient,
       startConversation,
       toast,

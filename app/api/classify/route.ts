@@ -37,13 +37,14 @@ export async function POST(request: NextRequest) {
     const completion = await groq.chat.completions.create({
       messages: [
         {
-          role: "system",
+          role: "user",
           content: classificationPrompt
             .replace("{patientInput}", patientInput)
             .replace("{previousPictureAnalysis}", previousPictureAnalysis),
         },
       ],
-      model: "mixtral-8x7b-32768",
+      // model: "mixtral-8x7b-32768",
+      model: "llama3-70b-8192",
       temperature: 0,
       max_tokens: 2,
       top_p: 1,
