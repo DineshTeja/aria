@@ -37,7 +37,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Markdown from "react-markdown";
 import { debounce } from "lodash";
 import { motion, AnimatePresence } from "framer-motion";
-
+import { GeistSans } from 'geist/font/sans';
 enum ConversationState {
   INACTIVE = "INACTIVE",
   LOADING = "LOADING",
@@ -683,14 +683,14 @@ export default function ChatRoomPage() {
 
   return (
     <Navbar>
-      <main className="min-h-screen p-4 sm:p-8 mx-auto max-w-7xl">
-        <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6 rounded-md shadow-md">
+      <main className="min-h-screen mx-auto max-w-7xl">
+        <div className="bg-green-50 border-l-4 border-green-700 p-4 mb-6 rounded-md shadow-md">
           <div className="flex items-center">
             <div className="flex-grow">
               <h2 className="text-2xl font-semibold text-green-800">
                 👋 Good {getGreeting()}, Dinesh
               </h2>
-              <p className="mt-2 text-sm text-green-700">
+              <p className={`mt-2 text-sm text-green-700 ${GeistSans.className}`}>
                 I&apos;m Aria, your AI health assistant powered by the
                 latest medical research from Medline, PubMed, and more. I&apos;m
                 here to chat about your health concerns and guide you through treatment advice in a secure manner. 
@@ -713,7 +713,7 @@ export default function ChatRoomPage() {
             )}
           >
             <Card className="text-card-foreground h-full">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 h-[72px]">
                 <CardTitle className="text-2xl font-light text-green-700">
                   Talk to Aria
                 </CardTitle>
@@ -758,7 +758,7 @@ export default function ChatRoomPage() {
                     <h3 className="text-2xl font-semibold text-green-700 mb-3">
                       Hi, I&apos;m Aria
                     </h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className={`text-sm text-muted-foreground ${GeistSans.className}`}>
                       I&apos;m here to listen and chat whenever you&apos;re
                       ready. Feel free to start our session when you&apos;re
                       comfortable.
@@ -778,7 +778,7 @@ export default function ChatRoomPage() {
             )}
           >
             <Card className="bg-card text-card-foreground h-full flex flex-col">
-              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between h-[72px]">
                 <CardTitle className="text-2xl font-light text-green-700">
                   {showDiagnosticReport ? "Diagnostic Report" : "Transcription"}
                 </CardTitle>
@@ -786,7 +786,7 @@ export default function ChatRoomPage() {
                   variant="outline"
                   size="sm"
                   className={cn(
-                    "transition-all duration-200 mb-2",
+                    "transition-all duration-200 w-full md:w-auto",
                     showDiagnosticReport
                       ? "text-green-700 hover:bg-green-50"
                       : "bg-green-700 text-white hover:bg-green-800"
@@ -848,7 +848,7 @@ export default function ChatRoomPage() {
                                 <p className="text-sm font-semibold text-blue-800">
                                   Aria
                                 </p>
-                                <p className="text-sm text-blue-700 leading-relaxed mt-1">
+                                <p className={`text-sm text-blue-700 leading-relaxed mt-1 ${GeistSans.className}`}>
                                   Hey there! I&apos;m Aria, your AI health assistant.
                                   I&apos;m here to listen, provide information, and
                                   offer guidance on general health topics. Feel free to
@@ -858,7 +858,7 @@ export default function ChatRoomPage() {
                                   advice, always consult with a qualified healthcare
                                   professional.
                                 </p>
-                                <p className="text-sm text-blue-600 mt-2 italic">
+                                <p className={`text-sm text-blue-600 mt-2 italic ${GeistSans.className}`}>
                                   How can I assist you with your health today?
                                 </p>
                               </div>
@@ -895,7 +895,7 @@ export default function ChatRoomPage() {
                                     {message.role === "user" ? "You" : "Aria"}
                                   </p>
                                   <p
-                                    className={`text-sm mt-1 ${
+                                    className={`${GeistSans.className} text-sm mt-1 ${
                                       message.role === "user"
                                         ? "text-green-700"
                                         : "text-blue-700"

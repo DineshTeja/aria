@@ -33,7 +33,8 @@ async function* chatWithModelStream(
 ): AsyncGenerator<string, void, unknown> {
   const stream = await client.chat.completions.create({
     messages,
-    model: "llama3-8b-8192",
+    model: "llama3-70b-8192",
+    // model: "mixtral-8x7b-32768",
     temperature: 0.7,
     max_tokens: 1000,
     stream: true,
