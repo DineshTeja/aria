@@ -37,9 +37,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Markdown from "react-markdown";
 import { debounce } from "lodash";
 import { motion, AnimatePresence } from "framer-motion";
-import { Switch } from "@/components/ui/switch";
 
-// Add this enum definition
 enum ConversationState {
   INACTIVE = "INACTIVE",
   LOADING = "LOADING",
@@ -94,6 +92,9 @@ export default function ChatRoomPage() {
   const { anamClient } = useAnam();
 
   const { waitForMessages } = useWaitForMessages(rawMessages);
+
+  // Add this new state to track if a session has started
+  const [sessionStarted, setSessionStarted] = useState(false);
 
   const onConnectionEstablished = () => {
     console.log("Connection established");
@@ -293,13 +294,17 @@ export default function ChatRoomPage() {
     }
   }, 500);
 
-  const startConversation = async () => {
+  const startConversation = useCallback(async () => {
     setAccumulatedMessages([]);
     setRawMessages([]);
     setConversationState(ConversationState.LOADING);
-
     setGeneratingReport(false);
     setDiagnosticReport(null);
+
+    // reset the view to transcription and mark session as started
+    setShowDiagnosticReport(false);
+    setSessionStarted(true);
+
     try {
       // Remove all existing listeners before adding new ones
       anamClient.removeListener(
@@ -412,10 +417,10 @@ export default function ChatRoomPage() {
         variant: "destructive",
       });
     }
-  };
+  }, [anamClient, setConversationState, toast]);
 
   const stopConversation = () => {
-    debouncedStartConversation.cancel(); // Cancel any pending start attempts
+    debouncedStartConversation.cancel();
     anamClient.stopStreaming();
 
     // Remove all listeners
@@ -447,20 +452,17 @@ export default function ChatRoomPage() {
       description: "The conversation has been stopped.",
     });
     setConversationState(ConversationState.INACTIVE);
-
-    // Reset session duration
     setSessionDuration(0);
-
-    // Clear message history
     setAccumulatedMessages([]);
     setRawMessages([]);
-
     setGeneratingReport(false);
     setDiagnosticReport(null);
-
-    // Turn off the microphone
     setMicEnabled(false);
     anamClient.muteInputAudio();
+
+    // Reset the view to transcription and mark session as ended
+    setShowDiagnosticReport(false);
+    setSessionStarted(false);
 
     // Stop the camera
     if (userVideoRef.current && userVideoRef.current.srcObject) {
@@ -637,7 +639,9 @@ export default function ChatRoomPage() {
   };
 
   const toggleView = () => {
-    setShowDiagnosticReport((prev) => !prev);
+    if (sessionStarted) {
+      setShowDiagnosticReport((prev) => !prev);
+    }
   };
 
   useEffect(() => {
@@ -778,16 +782,20 @@ export default function ChatRoomPage() {
                 <CardTitle className="text-2xl font-light text-green-700">
                   {showDiagnosticReport ? "Diagnostic Report" : "Transcription"}
                 </CardTitle>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">
-                    {showDiagnosticReport ? "Transcription" : "Diagnostic"}
-                  </span>
-                  <Switch
-                    checked={showDiagnosticReport}
-                    onCheckedChange={toggleView}
-                    disabled={!diagnosticReport}
-                  />
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "transition-all duration-200 mb-2",
+                    showDiagnosticReport
+                      ? "text-green-700 hover:bg-green-50"
+                      : "bg-green-700 text-white hover:bg-green-800"
+                  )}
+                  onClick={toggleView}
+                  disabled={!diagnosticReport || !sessionStarted}
+                >
+                  {showDiagnosticReport ? "View Transcription" : "View Diagnostic"}
+                </Button>
               </CardHeader>
               <Separator className="my-2" />
               <CardContent className="p-4 flex-grow flex flex-col overflow-hidden h-[calc(60vh-80px)]">
@@ -810,7 +818,7 @@ export default function ChatRoomPage() {
                       exit={{ opacity: 0 }}
                       className="flex flex-col flex-grow overflow-hidden"
                     >
-                      {conversationState === ConversationState.ACTIVE && (
+                      {conversationState === ConversationState.ACTIVE && userVideoRef.current ? (
                         <div className="mb-4 h-48">
                           <video
                             ref={userVideoRef}
@@ -820,10 +828,9 @@ export default function ChatRoomPage() {
                             className="w-full h-full object-cover rounded-lg"
                           />
                         </div>
-                      )}
-                      {conversationState === ConversationState.LOADING && (
+                      ) : conversationState === ConversationState.LOADING ? (
                         <Skeleton isLoading={true} className="mb-4 h-48 w-full" />
-                      )}
+                      ) : null}
                       <ScrollArea className="flex-grow overflow-y-auto">
                         <div className="space-y-4 pr-4">
                           {accumulatedMessages.length === 0 ? (
