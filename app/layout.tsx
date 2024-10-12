@@ -1,19 +1,10 @@
-import { AnamContextProvider } from "./contexts/AnamContext";
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
+import { AnamContextProvider } from "./contexts/AnamContext";
 import { getSessionToken } from "@/lib/server-lib";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
 
 export const metadata: Metadata = {
   title: "Aria",
@@ -25,15 +16,17 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const sessionToken = await getSessionToken(process.env.ANAM_API_KEY!);
+  const sessionToken = await getSessionToken(process.env.ANAM_API_KEY || '');
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=0.8"/>
+      </head>
+      <body className={GeistSans.className}>
         <AnamContextProvider sessionToken={sessionToken}>
           {children}
         </AnamContextProvider>
+        <Toaster />
       </body>
     </html>
   );

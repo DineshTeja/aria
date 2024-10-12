@@ -2,8 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LoaderIcon, Mic, MicOff, Phone, PhoneOff } from "lucide-react";
-import React, { useState } from "react";
+import { LoaderIcon, Mic, MicOff, Phone, PhoneOff, MessageSquare } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAnam } from "../contexts/AnamContext";
 import {
   AnamEvent,
@@ -12,6 +12,13 @@ import {
 } from "@anam-ai/js-sdk/dist/module/types";
 import { useToast } from "@/hooks/use-toast";
 import AvatarPlayer from "@/components/avatar-player";
+import Navbar from "@/components/nav/Navbar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Add this enum definition
 enum ConversationState {
@@ -21,13 +28,14 @@ enum ConversationState {
 }
 
 export default function ChatRoomPage() {
-  // Replace the boolean state with the enum
   const [conversationState, setConversationState] = useState<ConversationState>(
     ConversationState.INACTIVE
   );
   const [micIsEnabled, setMicEnabled] = useState(false);
   const { toast } = useToast();
   const [accumulatedMessages, setAccumulatedMessages] = useState<Message[]>([]);
+  const [sessionDuration, setSessionDuration] = useState(0);
+  const userVideoRef = useRef<HTMLVideoElement>(null);
 
   const { anamClient } = useAnam();
 
@@ -139,6 +147,23 @@ export default function ChatRoomPage() {
       description: "The conversation has been stopped.",
     });
     setConversationState(ConversationState.INACTIVE);
+    
+    // Reset session duration
+    setSessionDuration(0);
+    
+    // Clear message history
+    setAccumulatedMessages([]);
+    
+    // Turn off the microphone
+    setMicEnabled(false);
+    anamClient.muteInputAudio();
+    
+    // Stop the camera
+    if (userVideoRef.current && userVideoRef.current.srcObject) {
+      const tracks = (userVideoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach(track => track.stop());
+      userVideoRef.current.srcObject = null;
+    }
   };
 
   const getAIResponse = async () => {
@@ -175,10 +200,8 @@ export default function ChatRoomPage() {
         aiResponse += chunk;
       }
 
-      // Handle the complete AI response
       console.log("Complete AI response:", aiResponse);
       anamClient.talk(aiResponse);
-      // You might want to update state or perform other actions with the response
     } catch (error) {
       console.error("Error getting AI response:", error);
       toast({
@@ -202,85 +225,213 @@ export default function ChatRoomPage() {
     }
   };
 
-  // useEffect(() => {
-  //   return () => {
-  //     stopConversation();
-  //   };
-  // }, []);
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (conversationState === ConversationState.ACTIVE) {
+      interval = setInterval(() => {
+        setSessionDuration((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [conversationState]);
+
+  useEffect(() => {
+    if (conversationState === ConversationState.ACTIVE) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          if (userVideoRef.current) {
+            userVideoRef.current.srcObject = stream;
+          }
+        })
+        .catch(err => console.error("Error accessing camera:", err));
+    } else {
+      if (userVideoRef.current && userVideoRef.current.srcObject) {
+        const tracks = (userVideoRef.current.srcObject as MediaStream).getTracks();
+        tracks.forEach(track => track.stop());
+      }
+    }
+  }, [conversationState]);
 
   return (
-    <div className="h-screen w-screen bg-zinc-900 flex flex-col">
-      {/* Main view */}
-      <div className="flex-grow p-6 gap-6 flex flex-row">
-        <div className="h-full w-full rounded-lg bg-zinc-800 text-white">
-          Person
-        </div>
-        <div className="h-full w-full rounded-lg bg-zinc-800 text-white">
-          <AvatarPlayer />
-          {conversationState === ConversationState.INACTIVE ? (
-            <div className="flex items-center justify-center h-full">
-              <span>Conversation not active</span>
-            </div>
-          ) : conversationState === ConversationState.LOADING ? (
-            <div className="flex items-center justify-center h-full">
-              <LoaderIcon className="w-7 h-7 animate-spin" />
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Bottom bar */}
-      <div className="w-full bg-zinc-800 text-white p-4 flex flex-row justify-center items-center">
-        {/* Buttons */}
-        <div className="flex flex-row gap-3">
-          {/* Call is running */}
-          <Button
-            variant="default"
-            size="icon"
-            className={cn(
-              "rounded-full p-2 h-16 w-16",
-              conversationState === ConversationState.ACTIVE
-                ? "bg-rose-600 hover:bg-rose-700"
-                : conversationState === ConversationState.LOADING
-                ? "bg-yellow-600 hover:bg-yellow-700"
-                : "bg-blue-600 hover:bg-blue-700"
-            )}
-            onClick={() => {
-              if (conversationState === ConversationState.ACTIVE) {
-                stopConversation();
-              } else if (conversationState === ConversationState.INACTIVE) {
-                startConversation();
+    <Navbar>
+      <main className="min-h-screen p-4 sm:p-8 mx-auto max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Aria Card */}
+          <Card className="bg-card text-card-foreground lg:col-span-2 overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-2xl font-light text-green-700">Aria</CardTitle>
+              <div className="flex items-center space-x-2">
+                <Badge variant={conversationState === ConversationState.ACTIVE ? "default" : "secondary"}>
+                  {conversationState === ConversationState.ACTIVE ? "Active" : 
+                   conversationState === ConversationState.LOADING ? "Connecting..." : "Inactive"}
+                </Badge>
+                {conversationState === ConversationState.ACTIVE && (
+                  <Badge variant="outline" className="text-green-700">
+                    {new Date(sessionDuration * 1000).toISOString().substr(11, 8)}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <Separator className="my-2" />
+            <CardContent className="p-0 h-[calc(60vh-80px)] relative">
+              {conversationState !== ConversationState.INACTIVE &&
+                <div className="rounded-lg overflow-hidden h-full p-3">
+                  <AvatarPlayer />
+                </div>
               }
-            }}
-            disabled={conversationState === ConversationState.LOADING}
-          >
-            {conversationState === ConversationState.ACTIVE ? (
-              <PhoneOff className="w-7 h-7" />
-            ) : conversationState === ConversationState.LOADING ? (
-              <LoaderIcon className="w-7 h-7 animate-spin" />
-            ) : (
-              <Phone className="w-7 h-7" />
-            )}
-          </Button>
-          {/* Mic */}
-          <Button
-            variant="default"
-            size="icon"
-            className={cn(
-              "rounded-full p-2 h-16 w-16",
-              micIsEnabled ? "bg-blue-700 hover:bg-blue-800" : ""
-            )}
-            onClick={onMicTriggered}
-            disabled={conversationState !== ConversationState.ACTIVE}
-          >
-            {micIsEnabled ? (
-              <Mic className="w-7 h-7" />
-            ) : (
-              <MicOff className="w-7 h-7" />
-            )}
-          </Button>
+              {conversationState === ConversationState.INACTIVE && (
+                <div className="absolute inset-0 flex items-center justify-center bg-transparent">
+                  <div className="text-center max-w-md mx-auto px-4">
+                    <div className="relative w-80 h-80 mx-auto mb-6">
+                      <Image
+                        src="/aria-avatar.png"
+                        alt="Aria"
+                        layout="fill"
+                        objectFit="cover"
+                        className="rounded-full border-4 border-green-100"
+                      />
+                    </div>
+                    <h3 className="text-2xl font-semibold text-green-700 mb-3">Hi, I&apos;m Aria</h3>
+                    <p className="text-sm text-muted-foreground">
+                      I&apos;m here to listen and chat whenever you&apos;re ready. 
+                      Feel free to start our session when you&apos;re comfortable.
+                    </p>
+                  </div>
+                </div>
+              )}
+              {conversationState === ConversationState.LOADING && (
+                <div className="absolute inset-0 flex items-center justify-center bg-transparent">
+                  <LoaderIcon className="w-10 h-10 animate-spin text-green-700" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Patient Interaction Card */}
+          <Card className="bg-card text-card-foreground">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-2xl font-light text-green-700">You</CardTitle>
+            </CardHeader>
+            <Separator className="my-2" />
+            <CardContent className="p-4 h-[calc(60vh-80px)]">
+              {conversationState === ConversationState.ACTIVE && (
+                <div className="mb-4">
+                  <video
+                    ref={userVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                </div>
+              )}
+              <ScrollArea className="h-[calc(100%-8rem)] pr-4">
+                <div className="space-y-4">
+                  {accumulatedMessages.map((message, index) => (
+                    <div key={index} className="flex items-start space-x-2 bg-green-50 p-3 rounded-lg">
+                      <MessageSquare className="w-5 h-5 text-green-700 mt-1 flex-shrink-0" />
+                      <p className="text-sm text-green-800">{message.content}</p>
+                    </div>
+                  ))}
+                  {accumulatedMessages.length === 0 && (
+                    <p className="text-sm text-muted-foreground italic">Your conversation with Aria will appear here...</p>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </div>
-      </div>
-    </div>
+
+        {/* Control Panel */}
+        <Card className="mt-6 bg-card text-card-foreground">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="default"
+                      size="lg"
+                      className={cn(
+                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        conversationState === ConversationState.ACTIVE
+                          ? "bg-red-500 hover:bg-red-600"
+                          : conversationState === ConversationState.LOADING
+                          ? "bg-yellow-500 hover:bg-yellow-600"
+                          : "bg-green-700 hover:bg-green-800"
+                      )}
+                      onClick={() => {
+                        if (conversationState === ConversationState.ACTIVE) {
+                          stopConversation();
+                        } else if (conversationState === ConversationState.INACTIVE) {
+                          startConversation();
+                        }
+                      }}
+                      disabled={conversationState === ConversationState.LOADING}
+                    >
+                      {conversationState === ConversationState.ACTIVE ? (
+                        <>
+                          <PhoneOff className="w-6 h-6 mr-2" />
+                          End Session
+                        </>
+                      ) : conversationState === ConversationState.LOADING ? (
+                        <>
+                          <LoaderIcon className="w-6 h-6 mr-2 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <Phone className="w-6 h-6 mr-2" />
+                          Start Session
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {conversationState === ConversationState.ACTIVE
+                      ? "End your conversation with Aria"
+                      : conversationState === ConversationState.LOADING
+                      ? "Please wait while connecting"
+                      : "Begin your conversation with Aria"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className={cn(
+                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        micIsEnabled ? "bg-green-700 text-white hover:bg-green-800" : "text-green-700 hover:bg-green-50"
+                      )}
+                      onClick={onMicTriggered}
+                      disabled={conversationState !== ConversationState.ACTIVE}
+                    >
+                      {micIsEnabled ? (
+                        <>
+                          <MicOff className="w-6 h-6 mr-2" />
+                          Unmute
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-6 h-6 mr-2" />
+                          Mute
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {micIsEnabled ? "Unmute your microphone" : "Mute your microphone"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    </Navbar>
   );
 }
