@@ -114,6 +114,7 @@ async function aiDoctorPipeline(
 export async function POST(request: NextRequest) {
   try {
     const { patientInput } = await request.json();
+    console.log(`Patient input: ${patientInput}`);
 
     if (!patientInput) {
       return NextResponse.json(
