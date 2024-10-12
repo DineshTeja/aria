@@ -1,38 +1,25 @@
+import { supabase } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { zodResponseFormat } from "openai/helpers/zod.mjs";
-import { z } from "zod";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const searchResponseSchema = z.object({
-  informed_query: z.string(),
-  category: z.array(
-    z.enum([
-      "Cardiovascular",
-      "Respiratory",
-      "Gastrointestinal",
-      "Endocrine",
-      "Hematological",
-      "Infectious",
-      "Musculoskeletal",
-      "Autoimmune",
-      "Cancer",
-      "Neurological",
-    ])
-  ),
-});
-
 export async function POST(req: Request) {
   const { query } = await req.json();
 
-  const response = await openai.beta.chat.completions.parse({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: query }],
-    response_format: zodResponseFormat(searchResponseSchema, "searchResponse"),
+  const response = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: query,
   });
 
-  return NextResponse.json({ response });
+  const embedding = response.data[0].embedding;
+  const results = await supabase.rpc("match_documents", {
+    query_embedding: embedding.toString(),
+    match_threshold: 0.5,
+    match_count: 5,
+  });
+
+  return NextResponse.json({ results });
 }
