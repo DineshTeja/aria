@@ -2,16 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  LoaderIcon,
-  Mic,
-  MicOff,
-  Phone,
-  PhoneOff,
-  MessageSquare,
-  SquareActivity,
-} from "lucide-react";
-import React, { useState, useEffect, useRef } from "react";
+import { LoaderIcon, Mic, MicOff, Phone, PhoneOff, MessageSquare, SquareActivity } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAnam } from "../contexts/AnamContext";
 import {
   AnamEvent,
@@ -44,6 +36,33 @@ enum ConversationState {
   ACTIVE = "ACTIVE",
 }
 
+// Custom hook to check for messages
+const useWaitForMessages = (messages: Message[]) => {
+  const [hasMessages, setHasMessages] = useState(messages.length > 0);
+
+  const waitForMessages = useCallback(async () => {
+    if (messages.length === 0) {
+      console.log("Waiting for messages...");
+      const bufferTime = 2000;
+      const startTime = Date.now();
+      
+      while (Date.now() - startTime < bufferTime) {
+        if (messages.length > 0) {
+          setHasMessages(true);
+          return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      console.log("No messages received after 2-second buffer.");
+      return false;
+    }
+    return true;
+  }, [messages]);
+
+  return { hasMessages, waitForMessages };
+};
+
 export default function ChatRoomPage() {
   const [conversationState, setConversationState] = useState<ConversationState>(
     ConversationState.INACTIVE
@@ -62,6 +81,8 @@ export default function ChatRoomPage() {
   >(null);
 
   const { anamClient } = useAnam();
+
+  const { waitForMessages } = useWaitForMessages(rawMessages);
 
   const onConnectionEstablished = () => {
     console.log("Connection established");
@@ -346,18 +367,16 @@ export default function ChatRoomPage() {
     if (rawMessages.length === 0) {
       const bufferTime = 2000;
       const startTime = Date.now();
-
+      
       while (Date.now() - startTime < bufferTime) {
         if (rawMessages.length > 0) {
-          break;
+          break; 
         }
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 100)); 
       }
 
       if (rawMessages.length === 0) {
-        console.log(
-          "No messages received after 2-second buffer. Aborting AI response."
-        );
+        console.log("No messages received after 2-second buffer. Aborting AI response.");
         return;
       }
     }
@@ -479,7 +498,7 @@ export default function ChatRoomPage() {
         variant: "destructive",
       });
     }
-  };
+  }, [rawMessages, waitForMessages, conversationState, anamClient, startConversation, toast]);
 
   const onMicTriggered = () => {
     if (micIsEnabled) {
