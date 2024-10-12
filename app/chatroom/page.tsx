@@ -56,7 +56,7 @@ export default function ChatRoomPage() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [diagnosticReport, setDiagnosticReport] = useState<string | null>(null);
   const [rawMessages, setRawMessages] = useState<Message[]>([]);
-  const [aiPictureDialogOpen, setAiPictureDialogOpen] = useState(true);
+  const [aiPictureDialogOpen, setAiPictureDialogOpen] = useState(false);
 
   const { anamClient } = useAnam();
 
@@ -344,16 +344,11 @@ export default function ChatRoomPage() {
       while (Date.now() - startTime < bufferTime) {
         if (rawMessages.length > 0) {
           break;
-          break;
         }
-        await new Promise((resolve) => setTimeout(resolve, 100));
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       if (rawMessages.length === 0) {
-        console.log(
-          "No messages received after 2-second buffer. Aborting AI response."
-        );
         console.log(
           "No messages received after 2-second buffer. Aborting AI response."
         );
