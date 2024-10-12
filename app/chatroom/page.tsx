@@ -27,9 +27,7 @@ export default function ChatRoomPage() {
   );
   const [micIsEnabled, setMicEnabled] = useState(false);
   const { toast } = useToast();
-  const { accumulatedMessages, setAccumulatedMessages } = useState<Message[]>(
-    []
-  );
+  const [accumulatedMessages, setAccumulatedMessages] = useState<Message[]>([]);
 
   const { anamClient } = useAnam();
 
