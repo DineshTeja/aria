@@ -39,8 +39,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Markdown from "react-markdown";
 import { debounce } from "lodash";
 import { motion, AnimatePresence } from "framer-motion";
-import { GeistSans } from 'geist/font/sans';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { GeistSans } from "geist/font/sans";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import hark from "hark";
 
 enum ConversationState {
   INACTIVE = "INACTIVE",
@@ -49,17 +50,19 @@ enum ConversationState {
 }
 
 // Custom hook to check for messages
-const useWaitForMessages = (messages: Message[]) => {
-  const [hasMessages, setHasMessages] = useState(messages.length > 0);
+const useWaitForMessages = (messagesRef: React.RefObject<Message[]>) => {
+  const [hasMessages, setHasMessages] = useState(
+    messagesRef.current?.length > 0 ?? false
+  );
 
   const waitForMessages = useCallback(async () => {
-    if (messages.length === 0) {
+    if (messagesRef.current?.length === 0) {
       console.log("Waiting for messages...");
       const bufferTime = 2000;
       const startTime = Date.now();
 
       while (Date.now() - startTime < bufferTime) {
-        if (messages.length > 0) {
+        if (messagesRef.current?.length > 0) {
           setHasMessages(true);
           return true;
         }
@@ -70,7 +73,7 @@ const useWaitForMessages = (messages: Message[]) => {
       return false;
     }
     return true;
-  }, [messages]);
+  }, [messagesRef]);
 
   return { hasMessages, waitForMessages };
 };
@@ -79,6 +82,9 @@ export default function ChatRoomPage() {
   const [conversationState, setConversationState] = useState<ConversationState>(
     ConversationState.INACTIVE
   );
+  // const [isHarkSupported, setIsHarkSupported] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [stopHark, setStopHark] = useState<() => void | undefined>(() => {});
   const [micIsEnabled, setMicEnabled] = useState(false);
   const { toast } = useToast();
   const [accumulatedMessages, setAccumulatedMessages] = useState<Message[]>([]);
@@ -87,6 +93,7 @@ export default function ChatRoomPage() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [diagnosticReport, setDiagnosticReport] = useState<string | null>(null);
   const [rawMessages, setRawMessages] = useState<Message[]>([]);
+  const rawMessagesRef = useRef<Message[]>([]);
   const [aiPictureDialogOpen, setAiPictureDialogOpen] = useState(false);
   const [previousPictureAnalysis, setPreviousPictureAnalysis] = useState<
     string | null
@@ -96,10 +103,57 @@ export default function ChatRoomPage() {
 
   const { anamClient } = useAnam();
 
-  const { waitForMessages } = useWaitForMessages(rawMessages);
+  const { waitForMessages } = useWaitForMessages(rawMessagesRef);
 
   // Add this new state to track if a session has started
   const [sessionStarted, setSessionStarted] = useState(false);
+
+  const onUserStartSpeaking = useCallback(() => {
+    console.log("User started speaking");
+    console.log(
+      "(onUserStartSpeaking) rawMessagesRef.current",
+      rawMessagesRef.current
+    );
+    console.log("(onUserStartSpeaking) rawMessages", rawMessages);
+    setIsSpeaking(true);
+  }, [rawMessages]);
+
+  const onUserStopSpeaking = useCallback(() => {
+    console.log("User stopped speaking");
+    console.log(
+      "(onUserStopSpeaking) rawMessagesRef.current",
+      rawMessagesRef.current
+    );
+    console.log("(onUserStopSpeaking) rawMessages", rawMessages);
+    setIsSpeaking(false);
+    setTimeout(() => getAIClassification(), 500);
+  }, [rawMessages]);
+
+  const startHark = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // setIsHarkSupported(true);
+
+      const speechEvents = hark(stream, {
+        interval: 100,
+        threshold: -50,
+      });
+
+      speechEvents.on("speaking", onUserStartSpeaking);
+      speechEvents.on("stopped_speaking", onUserStopSpeaking);
+
+      setStopHark(() => () => {
+        console.log("Stopping hark");
+        speechEvents.stop();
+        stream.getTracks().forEach((track) => track.stop());
+      });
+
+      console.log("Hark started");
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      // setIsHarkSupported(false);
+    }
+  };
 
   const onConnectionEstablished = () => {
     console.log("Connection established");
@@ -142,11 +196,19 @@ export default function ChatRoomPage() {
     console.log("Audio started");
   };
 
-  const onMessageReceived = (messageEvent: MessageStreamEvent) => {
+  const onMessageReceived = useCallback((messageEvent: MessageStreamEvent) => {
     console.log("Message received", messageEvent);
 
-    // Update rawMessages
-    setRawMessages((prevRawMessages) => [...prevRawMessages, messageEvent]);
+    setRawMessages((prevRawMessages) => {
+      const newMessages = [...prevRawMessages, messageEvent];
+      console.log(
+        "Updating rawMessages on message received",
+        prevRawMessages,
+        messageEvent
+      );
+      rawMessagesRef.current = newMessages;
+      return newMessages;
+    });
 
     // Update accumulatedMessages (existing logic)
     setAccumulatedMessages((prevMessages) => {
@@ -166,17 +228,22 @@ export default function ChatRoomPage() {
       // Add as a new message if it doesn't match the previous one
       return [...newMessages, messageEvent];
     });
-  };
+  }, []);
 
   const onMessageHistoryUpdated = (messages: Message[]) => {
     console.log("Message HISTORY updated", messages);
     setAccumulatedMessages(messages);
     // Update rawMessages with the full message history
     setRawMessages(messages);
-    setAccumulatedMessages(messages);
-    // Update rawMessages with the full message history
-    setRawMessages(messages);
   };
+
+  useEffect(() => {
+    console.log("accumulatedMessages", accumulatedMessages);
+  }, [accumulatedMessages]);
+
+  useEffect(() => {
+    console.log("rawMessages updated:", rawMessages);
+  }, [rawMessages]);
 
   const debouncedStartConversation = debounce(async () => {
     if (
@@ -288,6 +355,7 @@ export default function ChatRoomPage() {
       );
 
       await anamClient.streamToVideoAndAudioElements("video", "audio");
+      startHark();
     } catch (error) {
       console.error("Error starting conversation:", error);
       setConversationState(ConversationState.INACTIVE);
@@ -301,10 +369,12 @@ export default function ChatRoomPage() {
 
   const startConversation = useCallback(async () => {
     setAccumulatedMessages([]);
+    console.log("Clearing rawMessages when starting conversation");
     setRawMessages([]);
     setConversationState(ConversationState.LOADING);
     setGeneratingReport(false);
     setDiagnosticReport(null);
+    setMicEnabled(true);
 
     // reset the view to transcription and mark session as started
     setShowDiagnosticReport(false);
@@ -412,6 +482,7 @@ export default function ChatRoomPage() {
       );
 
       await anamClient.streamToVideoAndAudioElements("video", "audio");
+      startHark();
       setConversationState(ConversationState.ACTIVE);
     } catch (error) {
       console.error("Error starting conversation:", error);
@@ -427,6 +498,7 @@ export default function ChatRoomPage() {
   const stopConversation = () => {
     debouncedStartConversation.cancel();
     anamClient.stopStreaming();
+    if (stopHark) stopHark();
 
     // Remove all listeners
     anamClient.removeListener(
@@ -459,6 +531,7 @@ export default function ChatRoomPage() {
     setConversationState(ConversationState.INACTIVE);
     setSessionDuration(0);
     setAccumulatedMessages([]);
+    console.log("Clearing accumulatedMessages when stopping conversation");
     setRawMessages([]);
     setGeneratingReport(false);
     setDiagnosticReport(null);
@@ -479,14 +552,26 @@ export default function ChatRoomPage() {
     }
   };
 
-  const getAIClassification = async () => {
+  const getAIClassification = useCallback(async () => {
+    if (isSpeaking) return;
+    console.log("Getting AI classification", rawMessagesRef.current);
     const messagesAvailable = await waitForMessages();
     if (!messagesAvailable) {
       console.log("Aborting AI response due to no messages.");
       return;
     }
 
-    const allLines = rawMessages
+    const isLastMessageInterrupted =
+      rawMessagesRef.current?.findLast((message) => message.role === "persona")
+        ?.interrupted ?? false;
+
+    if (isLastMessageInterrupted) {
+      anamClient.talk("Don't interrupt me.");
+      getAIResponse();
+      return;
+    }
+
+    const allLines = rawMessagesRef.current
       .map((message: Message) => message.content)
       .join("\n");
 
@@ -505,6 +590,8 @@ export default function ChatRoomPage() {
       const { needsPicture } = await response.json();
 
       if (needsPicture) {
+        anamClient.muteInputAudio();
+        setMicEnabled(false);
         anamClient.talk(
           "To help me better understand your condition, could I please see a picture of it?"
         );
@@ -515,15 +602,18 @@ export default function ChatRoomPage() {
     } catch (error) {
       console.error("Error getting AI classification:", error);
     }
-  };
+  }, [isSpeaking, waitForMessages]);
 
   const handlePictureAnalysis = (pictureAnalysis: string | null = null) => {
     setPreviousPictureAnalysis(pictureAnalysis);
+    anamClient.unmuteInputAudio();
+    setMicEnabled(true);
     getAIResponse(pictureAnalysis);
   };
 
   const getAIResponse = useCallback(
     async (pictureAnalysis: string | null = null) => {
+      if (isSpeaking) return;
       const messagesAvailable = await waitForMessages();
       if (!messagesAvailable) {
         console.log("Aborting AI response due to no messages.");
@@ -603,10 +693,11 @@ export default function ChatRoomPage() {
   );
 
   const onMicTriggered = () => {
+    console.log("Mic triggered while mic enabled was", micIsEnabled);
     if (micIsEnabled) {
       setMicEnabled(false);
       anamClient.muteInputAudio();
-      getAIClassification();
+      // getAIClassification();
     } else {
       setMicEnabled(true);
       anamClient.unmuteInputAudio();
@@ -675,7 +766,9 @@ export default function ChatRoomPage() {
         .catch((err) => console.error("Error accessing camera:", err));
     } else {
       if (userVideoRef.current && userVideoRef.current.srcObject) {
-        const tracks = (userVideoRef.current.srcObject as MediaStream).getTracks();
+        const tracks = (
+          userVideoRef.current.srcObject as MediaStream
+        ).getTracks();
         tracks.forEach((track) => track.stop());
         userVideoRef.current.srcObject = null;
       }
@@ -721,15 +814,16 @@ export default function ChatRoomPage() {
               <h2 className="text-2xl font-semibold text-green-800">
                 👋 Good {getGreeting()}, Dinesh
               </h2>
-              <p className={`mt-2 text-sm text-green-700 ${GeistSans.className}`}>
-                I&apos;m Aria, your AI health assistant powered by the
-                latest medical research from Medline, PubMed, and more. I&apos;m
-                here to chat about your health concerns and guide you through treatment advice in a secure manner. 
-                
-                Feel free to start a session whenever you&apos;re
-                ready. Remember, I&apos;m here to support you, but for
-                more serious medical advice, always consult with a qualified
-                healthcare professional.
+              <p
+                className={`mt-2 text-sm text-green-700 ${GeistSans.className}`}
+              >
+                I&apos;m Aria, your AI health assistant powered by the latest
+                medical research from Medline, PubMed, and more. I&apos;m here
+                to chat about your health concerns and guide you through
+                treatment advice in a secure manner. Feel free to start a
+                session whenever you&apos;re ready. Remember, I&apos;m here to
+                support you, but for more serious medical advice, always consult
+                with a qualified healthcare professional.
               </p>
             </div>
           </div>
@@ -769,6 +863,11 @@ export default function ChatRoomPage() {
                         .substr(11, 8)}
                     </Badge>
                   )}
+                  {conversationState === ConversationState.ACTIVE && (
+                    <Badge variant="outline" className="text-green-700">
+                      {isSpeaking ? "Speaking..." : "Not speaking"}
+                    </Badge>
+                  )}
                 </div>
               </CardHeader>
               <Separator className="my-2" />
@@ -789,7 +888,9 @@ export default function ChatRoomPage() {
                     <h3 className="text-2xl font-semibold text-green-700 mb-3">
                       Hi, I&apos;m Aria
                     </h3>
-                    <p className={`text-sm text-muted-foreground ${GeistSans.className}`}>
+                    <p
+                      className={`text-sm text-muted-foreground ${GeistSans.className}`}
+                    >
                       I&apos;m here to listen and chat whenever you&apos;re
                       ready. Feel free to start our session when you&apos;re
                       comfortable.
@@ -825,7 +926,9 @@ export default function ChatRoomPage() {
                   onClick={toggleView}
                   disabled={!diagnosticReport || !sessionStarted}
                 >
-                  {showDiagnosticReport ? "View Transcription" : "View Diagnostic"}
+                  {showDiagnosticReport
+                    ? "View Transcription"
+                    : "View Diagnostic"}
                 </Button>
               </CardHeader>
               <Separator className="my-2" />
@@ -851,7 +954,10 @@ export default function ChatRoomPage() {
                     >
                       <UserVideoFeed />
                       {conversationState === ConversationState.LOADING ? (
-                        <Skeleton isLoading={true} className="mb-4 h-48 w-full" />
+                        <Skeleton
+                          isLoading={true}
+                          className="mb-4 h-48 w-full"
+                        />
                       ) : null}
                       <ScrollArea className="flex-grow overflow-y-auto">
                         <div className="space-y-4 pr-4">
@@ -870,17 +976,22 @@ export default function ChatRoomPage() {
                                 <p className="text-sm font-semibold text-blue-800">
                                   Aria
                                 </p>
-                                <p className={`text-sm text-blue-700 leading-relaxed mt-1 ${GeistSans.className}`}>
-                                  Hey there! I&apos;m Aria, your AI health assistant.
-                                  I&apos;m here to listen, provide information, and
-                                  offer guidance on general health topics. Feel free to
-                                  ask me about symptoms, wellness tips, or any
-                                  health-related questions you might have. Remember,
-                                  I&apos;m here to support you, but for specific medical
-                                  advice, always consult with a qualified healthcare
-                                  professional.
+                                <p
+                                  className={`text-sm text-blue-700 leading-relaxed mt-1 ${GeistSans.className}`}
+                                >
+                                  Hey there! I&apos;m Aria, your AI health
+                                  assistant. I&apos;m here to listen, provide
+                                  information, and offer guidance on general
+                                  health topics. Feel free to ask me about
+                                  symptoms, wellness tips, or any health-related
+                                  questions you might have. Remember, I&apos;m
+                                  here to support you, but for specific medical
+                                  advice, always consult with a qualified
+                                  healthcare professional.
                                 </p>
-                                <p className={`text-sm text-blue-600 mt-2 italic ${GeistSans.className}`}>
+                                <p
+                                  className={`text-sm text-blue-600 mt-2 italic ${GeistSans.className}`}
+                                >
                                   How can I assist you with your health today?
                                 </p>
                               </div>
@@ -890,7 +1001,9 @@ export default function ChatRoomPage() {
                               <div
                                 key={index}
                                 className={`flex items-start space-x-3 p-3 rounded-lg ${
-                                  message.role === "user" ? "bg-green-50" : "bg-blue-50"
+                                  message.role === "user"
+                                    ? "bg-green-50"
+                                    : "bg-blue-50"
                                 }`}
                               >
                                 <div className="flex-shrink-0 mt-1">
@@ -917,7 +1030,9 @@ export default function ChatRoomPage() {
                                     {message.role === "user" ? "You" : "Aria"}
                                   </p>
                                   <p
-                                    className={`${GeistSans.className} text-sm mt-1 ${
+                                    className={`${
+                                      GeistSans.className
+                                    } text-sm mt-1 ${
                                       message.role === "user"
                                         ? "text-green-700"
                                         : "text-blue-700"
@@ -959,6 +1074,7 @@ export default function ChatRoomPage() {
                       )}
                       onClick={() => {
                         setAccumulatedMessages([]);
+                        console.log("Clearing rawMessages when button pressed");
                         setRawMessages([]);
                         if (conversationState === ConversationState.ACTIVE) {
                           stopConversation();
@@ -1062,7 +1178,9 @@ export default function ChatRoomPage() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {cameraEnabled ? "Turn off your camera" : "Turn on your camera"}
+                    {cameraEnabled
+                      ? "Turn off your camera"
+                      : "Turn on your camera"}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
