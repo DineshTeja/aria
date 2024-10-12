@@ -10,6 +10,8 @@ import {
   PhoneOff,
   MessageSquare,
   SquareActivity,
+  Camera,
+  CameraOff,
 } from "lucide-react";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAnam } from "../contexts/AnamContext";
@@ -38,6 +40,8 @@ import Markdown from "react-markdown";
 import { debounce } from "lodash";
 import { motion, AnimatePresence } from "framer-motion";
 import { GeistSans } from 'geist/font/sans';
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+
 enum ConversationState {
   INACTIVE = "INACTIVE",
   LOADING = "LOADING",
@@ -88,6 +92,7 @@ export default function ChatRoomPage() {
     string | null
   >(null);
   const [showDiagnosticReport, setShowDiagnosticReport] = useState(false);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
 
   const { anamClient } = useAnam();
 
@@ -644,6 +649,10 @@ export default function ChatRoomPage() {
     }
   };
 
+  const toggleCamera = () => {
+    setCameraEnabled(!cameraEnabled);
+  };
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (conversationState === ConversationState.ACTIVE) {
@@ -655,7 +664,7 @@ export default function ChatRoomPage() {
   }, [conversationState]);
 
   useEffect(() => {
-    if (conversationState === ConversationState.ACTIVE) {
+    if (cameraEnabled) {
       navigator.mediaDevices
         .getUserMedia({ video: true })
         .then((stream) => {
@@ -666,13 +675,12 @@ export default function ChatRoomPage() {
         .catch((err) => console.error("Error accessing camera:", err));
     } else {
       if (userVideoRef.current && userVideoRef.current.srcObject) {
-        const tracks = (
-          userVideoRef.current.srcObject as MediaStream
-        ).getTracks();
+        const tracks = (userVideoRef.current.srcObject as MediaStream).getTracks();
         tracks.forEach((track) => track.stop());
+        userVideoRef.current.srcObject = null;
       }
     }
-  }, [conversationState]);
+  }, [cameraEnabled]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -680,6 +688,29 @@ export default function ChatRoomPage() {
     if (hour < 18) return "afternoon";
     return "evening";
   };
+
+  const UserVideoFeed = () => (
+    <div className="mb-4 h-48 relative">
+      {cameraEnabled ? (
+        <video
+          ref={userVideoRef}
+          autoPlay
+          muted
+          playsInline
+          className="w-full h-full object-cover rounded-lg"
+        />
+      ) : (
+        <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
+          <Avatar>
+            <AvatarFallback>DV</AvatarFallback>
+          </Avatar>
+        </div>
+      )}
+      <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-sm">
+        You
+      </div>
+    </div>
+  );
 
   return (
     <Navbar>
@@ -818,17 +849,8 @@ export default function ChatRoomPage() {
                       exit={{ opacity: 0 }}
                       className="flex flex-col flex-grow overflow-hidden"
                     >
-                      {conversationState === ConversationState.ACTIVE && userVideoRef.current ? (
-                        <div className="mb-4 h-48">
-                          <video
-                            ref={userVideoRef}
-                            autoPlay
-                            muted
-                            playsInline
-                            className="w-full h-full object-cover rounded-lg"
-                          />
-                        </div>
-                      ) : conversationState === ConversationState.LOADING ? (
+                      <UserVideoFeed />
+                      {conversationState === ConversationState.LOADING ? (
                         <Skeleton isLoading={true} className="mb-4 h-48 w-full" />
                       ) : null}
                       <ScrollArea className="flex-grow overflow-y-auto">
@@ -1008,6 +1030,39 @@ export default function ChatRoomPage() {
                     {micIsEnabled
                       ? "Unmute your microphone"
                       : "Mute your microphone"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className={cn(
+                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        cameraEnabled
+                          ? "bg-green-700 text-white hover:bg-green-800"
+                          : "text-green-700 hover:bg-green-50"
+                      )}
+                      onClick={toggleCamera}
+                    >
+                      {cameraEnabled ? (
+                        <>
+                          <CameraOff className="w-6 h-6 mr-2" />
+                          Turn Camera Off
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="w-6 h-6 mr-2" />
+                          Turn Camera On
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {cameraEnabled ? "Turn off your camera" : "Turn on your camera"}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
