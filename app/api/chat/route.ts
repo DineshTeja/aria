@@ -76,7 +76,10 @@ async function aiDoctorPipeline(
     
     To be exceptionally clear, you should NEVER label the response DIAGNOSIS_PROVIDED if you are asking the patient any question and expect that they may respond.
     
-    In all forms of conversation with the patient, should should be very concise.`;
+    In all forms of conversation with the patient, you should be very concise and get to the point fast. Take the following as examples:
+    1. "How can I help you today?" is better than "Let's start from the beginning. Can you please tell me what brings you to seek medical attention today? What are your symptoms?"
+    2. Do not say "I'm so sorry to hear about your bike accident and the rash on your arm. Based on your symptoms, I'm going to recommend that you seek immediate medical attention at an emergency room or urgent care center to rule out anyserious injuries,including a possible fracture in your arm.As for the rash, I understand that it's concerning, and we'll need to investigate further to determine the cause. Can you tell me more about the rash? Is it itchy, blistered, or has it spread to other areas of your body?" Rather, choose to say: "I recommend you see the emergency room as soon as possible in case of any serious physics injury. Can you also tell me a little more about the rash, such as whether it is itchy, blistered, or has it spread to other areas of your body?"
+    3. If the patient asks a simple question such as "what is a stomach ulcer?" you should respond with a simple answer such as "A stomach ulcer is a sore that develops on the lining of the stomach or small intestine." You should not provide a long-winded explanation or ask follow-up questions unless the patient asks for more information.`
 
   const medicalQuery = `Provide medical analysis for these symptoms: ${patientInput}`;
   const medicalInfo = await medicalLlamaQuery(medicalQuery);
