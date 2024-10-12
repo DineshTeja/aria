@@ -30,9 +30,9 @@ export default function ChatRoomPage() {
 
   const { anamClient } = useAnam();
 
-  const [messageHistory, setMessageHistory] = useState<Message[]>([]);
-  const lastMessageRef = useRef<Message | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const speakingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [audioLevel, setAudioLevel] = useState<number>(0);
 
   const onConnectionEstablished = () => {
     console.log("Connection established");
@@ -81,36 +81,7 @@ export default function ChatRoomPage() {
 
   const onMessageHistoryUpdated = (messages: Message[]) => {
     console.log("Message HISTORY updated", messages);
-    setMessageHistory(messages);
   };
-
-  useEffect(() => {
-    const lastMessage = messageHistory[messageHistory.length - 1];
-
-    console.log("Last message", lastMessage, lastMessageRef.current);
-
-    if (lastMessage && lastMessage !== lastMessageRef.current) {
-      lastMessageRef.current = lastMessage;
-
-      // Clear any existing timeout
-      if (timeoutRef.current) {
-        console.log("Clearing timeout");
-        clearTimeout(timeoutRef.current);
-      }
-
-      // Set a new timeout
-      timeoutRef.current = setTimeout(() => {
-        console.log("Now it's time for the persona to talk");
-      }, 2000);
-    }
-
-    // Cleanup function
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [messageHistory]);
 
   const startConversation = async () => {
     if (
@@ -172,11 +143,72 @@ export default function ChatRoomPage() {
     setConversationState(ConversationState.INACTIVE);
   };
 
-  // useEffect(() => {
-  //   return () => {
-  //     stopConversation();
-  //   };
-  // }, []);
+  useEffect(() => {
+    let audioContext: AudioContext | null = null;
+    let analyser: AnalyserNode | null = null;
+    let microphone: MediaStreamAudioSourceNode | null = null;
+
+    const checkAudioLevel = () => {
+      if (!analyser) return;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(dataArray);
+
+      const sum = dataArray.reduce((a, b) => a + b, 0);
+      const average = sum / dataArray.length;
+
+      setAudioLevel(average); // Update the audio level state
+
+      if (average > 10) {
+        // Adjust this threshold as needed
+        setIsSpeaking(true);
+        if (speakingTimeoutRef.current) {
+          clearTimeout(speakingTimeoutRef.current);
+        }
+        speakingTimeoutRef.current = setTimeout(() => {
+          setIsSpeaking(false);
+          console.log("no speaking");
+        }, 2000);
+      }
+    };
+
+    const startMicrophoneMonitoring = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        audioContext = new AudioContext();
+        analyser = audioContext.createAnalyser();
+        microphone = audioContext.createMediaStreamSource(stream);
+        microphone.connect(analyser);
+
+        const checkAudioInterval = setInterval(checkAudioLevel, 100);
+
+        return () => {
+          clearInterval(checkAudioInterval);
+          if (audioContext) audioContext.close();
+          if (microphone) microphone.disconnect();
+          if (speakingTimeoutRef.current) {
+            clearTimeout(speakingTimeoutRef.current);
+          }
+        };
+      } catch (error) {
+        console.error("Error accessing microphone:", error);
+      }
+    };
+
+    if (micIsEnabled && conversationState === ConversationState.ACTIVE) {
+      startMicrophoneMonitoring();
+    }
+
+    return () => {
+      if (audioContext) audioContext.close();
+      if (microphone) microphone.disconnect();
+      if (speakingTimeoutRef.current) {
+        clearTimeout(speakingTimeoutRef.current);
+      }
+    };
+  }, [micIsEnabled, conversationState]);
 
   return (
     <div className="h-screen w-screen bg-zinc-900 flex flex-col">
@@ -197,6 +229,13 @@ export default function ChatRoomPage() {
             </div>
           ) : null}
         </div>
+
+        {/* Audio Level Monitor */}
+        {micIsEnabled && conversationState === ConversationState.ACTIVE && (
+          <div className="absolute top-4 right-4 bg-zinc-800 text-white p-2 rounded">
+            Audio Level: {audioLevel.toFixed(2)}
+          </div>
+        )}
       </div>
 
       {/* Bottom bar */}
