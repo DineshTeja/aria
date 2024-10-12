@@ -57,6 +57,9 @@ export default function ChatRoomPage() {
   const [diagnosticReport, setDiagnosticReport] = useState<string | null>(null);
   const [rawMessages, setRawMessages] = useState<Message[]>([]);
   const [aiPictureDialogOpen, setAiPictureDialogOpen] = useState(false);
+  const [previousPictureAnalysis, setPreviousPictureAnalysis] = useState<
+    string | null
+  >(null);
 
   const { anamClient } = useAnam();
 
@@ -366,7 +369,10 @@ export default function ChatRoomPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ patientInput: allLines }),
+        body: JSON.stringify({
+          patientInput: allLines,
+          previousPictureAnalysis: previousPictureAnalysis,
+        }),
       });
 
       const { needsPicture } = await response.json();
@@ -385,6 +391,7 @@ export default function ChatRoomPage() {
   };
 
   const handlePictureAnalysis = (pictureAnalysis: string | null = null) => {
+    setPreviousPictureAnalysis(pictureAnalysis);
     getAIResponse(pictureAnalysis);
   };
 

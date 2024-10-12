@@ -1,22 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
 
-const classificationPrompt = `You are an AI medical assistant. Your task is to determine if a visual inspection would be beneficial for diagnosing the patient's condition based on their input. 
+const classificationPrompt = `You are an AI medical assistant. Your task is to determine if a visual inspection would be beneficial for diagnosing the patient's condition based on their input and any previous picture analysis.
 
 Instructions:
-1. Analyze the patient's description carefully.
-2. Determine if the patient is describing a visible physical symptom on their outer body.
-3. Assess whether a visual inspection could provide valuable information for diagnosis.
-4. Respond with a single character:
-   - '0' if a picture is NOT needed
-   - '1' if a picture IS needed for better assessment
+1. Analyze the patient's current description carefully.
+2. Consider the previous picture analysis provided.
+3. Determine if the previous picture analysis is still relevant to the current patient input.
+4. If the previous picture analysis is no longer relevant to the current context, recommend taking a new picture.
+5. Also recommend a new picture if the patient is describing a new or changed visible physical symptom on their outer body.
+6. Assess whether a new visual inspection could provide valuable additional information for diagnosis.
+7. Respond with a single character:
+   - '0' if a new picture is NOT needed
+   - '1' if a new picture IS needed for better assessment
 
-Patient input: {patientInput}
+Important: If the previous picture analysis is not relevant to the current patient input, this strongly indicates that a new picture (1) is needed. But if the previous picture analysis is even closely related to the current patient input, this indicates that a new picture is NOT needed (0).
+
+Previous picture analysis: {previousPictureAnalysis}
+Current patient input: {patientInput}
 
 Response (0 or 1):`;
 
 export async function POST(request: NextRequest) {
-  const { patientInput } = await request.json();
+  const { patientInput, previousPictureAnalysis } = await request.json();
 
   if (!patientInput) {
     return NextResponse.json(
@@ -32,7 +38,9 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: classificationPrompt.replace("{patientInput}", patientInput),
+          content: classificationPrompt
+            .replace("{patientInput}", patientInput)
+            .replace("{previousPictureAnalysis}", previousPictureAnalysis),
         },
       ],
       model: "mixtral-8x7b-32768",
