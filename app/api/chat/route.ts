@@ -24,17 +24,23 @@ async function medicalLlamaQuery(query: string): Promise<string> {
   return chatCompletion.choices[0].message.content || '';
 }
 
-async function chatWithModel(messages: GroqMessageParam[]): Promise<string> {
-  const chatCompletion = await client.chat.completions.create({
+async function* chatWithModelStream(messages: GroqMessageParam[]): AsyncGenerator<string, void, unknown> {
+  const stream = await client.chat.completions.create({
     messages,
     model: 'llama3-8b-8192',
     temperature: 0.7,
     max_tokens: 1000,
+    stream: true,
   });
-  return chatCompletion.choices[0].message.content || '';
+
+  for await (const chunk of stream) {
+    if (chunk.choices[0]?.delta?.content) {
+      yield chunk.choices[0].delta.content;
+    }
+  }
 }
 
-async function aiDoctorPipeline(patientInput: string): Promise<{ response: string; hasDiagnosis: boolean }> {
+async function aiDoctorPipeline(patientInput: string): Promise<AsyncGenerator<string, { hasDiagnosis: boolean }, unknown>> {
   const systemPrompt = `
     You are an AI doctor tasked with analyzing a patient's description of their symptoms and concerns. Based on the information provided, you should:
 
@@ -66,12 +72,21 @@ async function aiDoctorPipeline(patientInput: string): Promise<{ response: strin
     { role: 'user', content: `Patient input: ${patientInput}\n\nAdditional information from specialized medical model: ${medicalInfo}` },
   ];
 
-  const response = await chatWithModel(messages);
-  
-  const hasDiagnosis = response.includes('[DIAGNOSIS_PROVIDED]');
-  const responseContent = response.replace('[DIAGNOSIS_PROVIDED]', '').replace('[MORE_INFO_NEEDED]', '').trim();
+  const stream = chatWithModelStream(messages);
+  let fullResponse = '';
+  let hasDiagnosis = false;
 
-  return { response: responseContent, hasDiagnosis };
+  async function* responseGenerator() {
+    for await (const chunk of stream) {
+      fullResponse += chunk;
+      yield chunk;
+    }
+
+    hasDiagnosis = fullResponse.includes('[DIAGNOSIS_PROVIDED]');
+    return { hasDiagnosis };
+  }
+
+  return responseGenerator();
 }
 
 export async function POST(request: NextRequest) {
@@ -82,9 +97,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Patient input is required' }, { status: 400 });
     }
 
-    const { response, hasDiagnosis } = await aiDoctorPipeline(patientInput);
+    const stream = await aiDoctorPipeline(patientInput);
+    const encoder = new TextEncoder();
 
-    return NextResponse.json({ response, hasDiagnosis });
+    return new NextResponse(
+      new ReadableStream({
+        async start(controller) {
+          for await (const chunk of stream) {
+            controller.enqueue(encoder.encode(chunk));
+          }
+          controller.close();
+        },
+      }),
+      {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Transfer-Encoding': 'chunked',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error in AI doctor pipeline:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
