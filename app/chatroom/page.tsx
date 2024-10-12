@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LoaderIcon, Mic, MicOff, Phone, PhoneOff } from "lucide-react";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { useAnam } from "../contexts/AnamContext";
 import {
   AnamEvent,
@@ -27,12 +27,9 @@ export default function ChatRoomPage() {
   );
   const [micIsEnabled, setMicEnabled] = useState(false);
   const { toast } = useToast();
+  const [accumulatedMessages, setAccumulatedMessages] = useState<Message[]>([]);
 
   const { anamClient } = useAnam();
-
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const speakingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [audioLevel, setAudioLevel] = useState<number>(0);
 
   const onConnectionEstablished = () => {
     console.log("Connection established");
@@ -77,6 +74,7 @@ export default function ChatRoomPage() {
 
   const onMessageReceived = (messageEvent: MessageStreamEvent) => {
     console.log("Message received", messageEvent);
+    setAccumulatedMessages([...accumulatedMessages, messageEvent]);
   };
 
   const onMessageHistoryUpdated = (messages: Message[]) => {
@@ -143,72 +141,72 @@ export default function ChatRoomPage() {
     setConversationState(ConversationState.INACTIVE);
   };
 
-  useEffect(() => {
-    let audioContext: AudioContext | null = null;
-    let analyser: AnalyserNode | null = null;
-    let microphone: MediaStreamAudioSourceNode | null = null;
+  const getAIResponse = async () => {
+    const allLines = accumulatedMessages
+      .map((message: Message) => message.content)
+      .join("\n");
 
-    const checkAudioLevel = () => {
-      if (!analyser) return;
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ patientInput: allLines }),
+      });
 
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      analyser.getByteFrequencyData(dataArray);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-      const sum = dataArray.reduce((a, b) => a + b, 0);
-      const average = sum / dataArray.length;
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Response body is not readable");
+      }
 
-      setAudioLevel(average); // Update the audio level state
+      let aiResponse = "";
 
-      if (average > 10) {
-        // Adjust this threshold as needed
-        setIsSpeaking(true);
-        if (speakingTimeoutRef.current) {
-          clearTimeout(speakingTimeoutRef.current);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
         }
-        speakingTimeoutRef.current = setTimeout(() => {
-          setIsSpeaking(false);
-          console.log("no speaking");
-        }, 2000);
+        const chunk = new TextDecoder().decode(value);
+        aiResponse += chunk;
       }
-    };
 
-    const startMicrophoneMonitoring = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
-        audioContext = new AudioContext();
-        analyser = audioContext.createAnalyser();
-        microphone = audioContext.createMediaStreamSource(stream);
-        microphone.connect(analyser);
-
-        const checkAudioInterval = setInterval(checkAudioLevel, 100);
-
-        return () => {
-          clearInterval(checkAudioInterval);
-          if (audioContext) audioContext.close();
-          if (microphone) microphone.disconnect();
-          if (speakingTimeoutRef.current) {
-            clearTimeout(speakingTimeoutRef.current);
-          }
-        };
-      } catch (error) {
-        console.error("Error accessing microphone:", error);
-      }
-    };
-
-    if (micIsEnabled && conversationState === ConversationState.ACTIVE) {
-      startMicrophoneMonitoring();
+      // Handle the complete AI response
+      console.log("Complete AI response:", aiResponse);
+      anamClient.talk(aiResponse);
+      // You might want to update state or perform other actions with the response
+    } catch (error) {
+      console.error("Error getting AI response:", error);
+      toast({
+        title: "Error",
+        description: "Failed to get AI response",
+        variant: "destructive",
+      });
     }
+  };
 
-    return () => {
-      if (audioContext) audioContext.close();
-      if (microphone) microphone.disconnect();
-      if (speakingTimeoutRef.current) {
-        clearTimeout(speakingTimeoutRef.current);
-      }
-    };
-  }, [micIsEnabled, conversationState]);
+  const onMicTriggered = () => {
+    if (micIsEnabled) {
+      setMicEnabled(false);
+      anamClient.muteInputAudio();
+      getAIResponse();
+    } else {
+      setMicEnabled(true);
+      anamClient.unmuteInputAudio();
+
+      setAccumulatedMessages([]);
+    }
+  };
+
+  // useEffect(() => {
+  //   return () => {
+  //     stopConversation();
+  //   };
+  // }, []);
 
   return (
     <div className="h-screen w-screen bg-zinc-900 flex flex-col">
@@ -229,13 +227,6 @@ export default function ChatRoomPage() {
             </div>
           ) : null}
         </div>
-
-        {/* Audio Level Monitor */}
-        {micIsEnabled && conversationState === ConversationState.ACTIVE && (
-          <div className="absolute top-4 right-4 bg-zinc-800 text-white p-2 rounded">
-            Audio Level: {audioLevel.toFixed(2)}
-          </div>
-        )}
       </div>
 
       {/* Bottom bar */}
@@ -279,7 +270,7 @@ export default function ChatRoomPage() {
               "rounded-full p-2 h-16 w-16",
               micIsEnabled ? "bg-blue-700 hover:bg-blue-800" : ""
             )}
-            onClick={() => setMicEnabled(!micIsEnabled)}
+            onClick={onMicTriggered}
             disabled={conversationState !== ConversationState.ACTIVE}
           >
             {micIsEnabled ? (
