@@ -141,14 +141,59 @@ export default function ChatRoomPage() {
     setConversationState(ConversationState.INACTIVE);
   };
 
+  const getAIResponse = async () => {
+    const allLines = accumulatedMessages
+      .map((message: Message) => message.content)
+      .join("\n");
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ patientInput: allLines }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Response body is not readable");
+      }
+
+      let aiResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        const chunk = new TextDecoder().decode(value);
+        aiResponse += chunk;
+      }
+
+      // Handle the complete AI response
+      console.log("Complete AI response:", aiResponse);
+      anamClient.talk(aiResponse);
+      // You might want to update state or perform other actions with the response
+    } catch (error) {
+      console.error("Error getting AI response:", error);
+      toast({
+        title: "Error",
+        description: "Failed to get AI response",
+        variant: "destructive",
+      });
+    }
+  };
+
   const onMicTriggered = () => {
     if (micIsEnabled) {
       setMicEnabled(false);
       anamClient.muteInputAudio();
-      const allLines = accumulatedMessages
-        .map((message: Message) => message.content)
-        .join("\n");
-      console.log("All lines", allLines);
+      getAIResponse();
     } else {
       setMicEnabled(true);
       anamClient.unmuteInputAudio();
