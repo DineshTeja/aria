@@ -337,7 +337,31 @@ export default function ChatRoomPage() {
   };
 
   const getAIClassification = async () => {
-    const allLines = accumulatedMessages
+    if (rawMessages.length === 0) {
+      const bufferTime = 2000;
+      const startTime = Date.now();
+
+      while (Date.now() - startTime < bufferTime) {
+        if (rawMessages.length > 0) {
+          break;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      if (rawMessages.length === 0) {
+        console.log(
+          "No messages received after 2-second buffer. Aborting AI response."
+        );
+        console.log(
+          "No messages received after 2-second buffer. Aborting AI response."
+        );
+        return;
+      }
+    }
+
+    const allLines = rawMessages
       .map((message: Message) => message.content)
       .join("\n");
 
@@ -365,7 +389,11 @@ export default function ChatRoomPage() {
     }
   };
 
-  const getAIResponse = async (pictureDescription: string | null = null) => {
+  const handlePictureAnalysis = (pictureAnalysis: string | null = null) => {
+    getAIResponse(pictureAnalysis);
+  };
+
+  const getAIResponse = async (pictureAnalysis: string | null = null) => {
     if (rawMessages.length === 0) {
       const bufferTime = 2000;
       const startTime = Date.now();
@@ -389,8 +417,8 @@ export default function ChatRoomPage() {
       .map((message: Message) => message.content)
       .join("\n");
 
-    if (pictureDescription) {
-      allLines += `\n\nHere is a description of the picture of the condition: ${pictureDescription}`;
+    if (pictureAnalysis) {
+      allLines += `\n\nHere is a description of a picture of the condition: ${pictureAnalysis}`;
     }
 
     try {
@@ -454,7 +482,6 @@ export default function ChatRoomPage() {
       anamClient.muteInputAudio();
       console.log("Getting AI response", accumulatedMessages);
 
-      // getAIResponse();
       getAIClassification();
     } else {
       setMicEnabled(true);
@@ -528,6 +555,9 @@ export default function ChatRoomPage() {
           {/* Aria Card */}
           <Card className="text-card-foreground lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-2xl font-light text-green-700">
+                Talk to Aria
+              </CardTitle>
               <CardTitle className="text-2xl font-light text-green-700">
                 Talk to Aria
               </CardTitle>
@@ -844,7 +874,7 @@ export default function ChatRoomPage() {
         <AiPictureDialog
           open={aiPictureDialogOpen}
           setOpen={setAiPictureDialogOpen}
-          pictureDescriptionCallback={getAIResponse}
+          pictureDescriptionCallback={handlePictureAnalysis}
         />
       </main>
     </Navbar>

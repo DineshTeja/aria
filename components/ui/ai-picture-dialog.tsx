@@ -119,18 +119,12 @@ export default function AiPictureDialog({
   };
 
   const processPicture = async (imageData: string): Promise<string> => {
-    // TODO: Implement image processing and description generation
-    // console.log("Processing picture:", imageData.substring(0, 50) + "...");
-    // console.log("Processing picture");
-    // console.log(imageData);
-    // return "A placeholder description of the captured image";
     const response = await fetch("/api/llava", {
       method: "POST",
       body: JSON.stringify({ imageData }),
     });
-    const data = await response.json();
-    console.log(data);
-    return data.analysis;
+    const { analysis } = await response.json();
+    return analysis;
   };
 
   const handleOpenChange = (newOpen: boolean) => {
