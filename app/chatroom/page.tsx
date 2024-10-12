@@ -197,10 +197,15 @@ export default function ChatRoomPage() {
     console.log("Audio started");
   };
 
+  useEffect(() => {
+    console.log("isInterrupted changed", isInterrupted);
+  }, [isInterrupted]);
+
   const onMessageReceived = useCallback((messageEvent: MessageStreamEvent) => {
     console.log("Message received", messageEvent);
 
     if (messageEvent.interrupted) {
+      console.log("Interruption detected");
       setIsInterrupted(true);
     }
 
