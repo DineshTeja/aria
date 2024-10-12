@@ -135,6 +135,9 @@ export default function ChatRoomPage() {
     setAccumulatedMessages(messages);
     // Update rawMessages with the full message history
     setRawMessages(messages);
+    setAccumulatedMessages(messages);
+    // Update rawMessages with the full message history
+    setRawMessages(messages);
   };
 
   const debouncedStartConversation = debounce(async () => {
@@ -453,7 +456,7 @@ export default function ChatRoomPage() {
       }
 
       console.log("Complete AI response:", aiResponse);
-
+      
       // Check if the session is active before calling talk
       if (conversationState === ConversationState.ACTIVE) {
         try {
@@ -482,8 +485,6 @@ export default function ChatRoomPage() {
     if (micIsEnabled) {
       setMicEnabled(false);
       anamClient.muteInputAudio();
-      console.log("Getting AI response", accumulatedMessages);
-
       getAIClassification();
     } else {
       setMicEnabled(true);
@@ -560,9 +561,6 @@ export default function ChatRoomPage() {
               <CardTitle className="text-2xl font-light text-green-700">
                 Talk to Aria
               </CardTitle>
-              <CardTitle className="text-2xl font-light text-green-700">
-                Talk to Aria
-              </CardTitle>
               <div className="flex items-center space-x-2">
                 <Badge
                   variant={
@@ -588,11 +586,11 @@ export default function ChatRoomPage() {
             </CardHeader>
             <Separator className="my-2" />
             <CardContent className="p-0 h-[calc(60vh-80px)] bg-transparent">
-              {conversationState !== ConversationState.INACTIVE && (
+              {/* {conversationState !== ConversationState.INACTIVE &&
                 <div className="rounded-lg bg-transparent overflow-hidden h-full p-3">
                   <AvatarPlayer />
                 </div>
-              )}
+              )} */}
               {conversationState === ConversationState.INACTIVE && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center max-w-md mx-auto px-4">
@@ -622,9 +620,7 @@ export default function ChatRoomPage() {
           {/* Patient Interaction Card */}
           <Card className="bg-card text-card-foreground">
             <CardHeader className="pb-2">
-              <CardTitle className="text-2xl font-light text-green-700">
-                Transcription
-              </CardTitle>
+              <CardTitle className="text-2xl font-light text-green-700">Transcription</CardTitle>
             </CardHeader>
             <Separator className="my-2" />
             <CardContent className="p-4 h-[calc(60vh-80px)] flex flex-col">
@@ -655,18 +651,9 @@ export default function ChatRoomPage() {
                         />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-blue-800">
-                          Aria
-                        </p>
+                        <p className="text-sm font-semibold text-blue-800">Aria</p>
                         <p className="text-sm text-blue-700 leading-relaxed mt-1">
-                          Hey there! I&apos;m Aria, your AI health assistant.
-                          I&apos;m here to listen, provide information, and
-                          offer guidance on general health topics. Feel free to
-                          ask me about symptoms, wellness tips, or any
-                          health-related questions you might have. Remember,
-                          I&apos;m here to support you, but for specific medical
-                          advice, always consult with a qualified healthcare
-                          professional.
+                          Hey there! I&apos;m Aria, your AI health assistant. I&apos;m here to listen, provide information, and offer guidance on general health topics. Feel free to ask me about symptoms, wellness tips, or any health-related questions you might have. Remember, I&apos;m here to support you, but for specific medical advice, always consult with a qualified healthcare professional.
                         </p>
                         <p className="text-sm text-blue-600 mt-2 italic">
                           How can I assist you with your health today?
@@ -726,13 +713,13 @@ export default function ChatRoomPage() {
           {diagnosticReport && (
             <Card className="bg-card text-card-foreground lg:col-span-3">
               <CardHeader className="pb-2">
-                <CardTitle className="text-2xl font-light text-green-700">
-                  Diagnostic Report
-                </CardTitle>
+                <CardTitle className="text-2xl font-light text-green-700">Diagnostic Report</CardTitle>
               </CardHeader>
               <Separator className="my-2" />
               <CardContent className="p-4 max-h-[60vh] overflow-y-auto">
-                <Markdown>{diagnosticReport}</Markdown>
+                <Markdown>
+                  {diagnosticReport}
+                </Markdown>
               </CardContent>
             </Card>
           )}
@@ -867,6 +854,38 @@ export default function ChatRoomPage() {
                   <TooltipContent>
                     Generate a diagnostic report based on your conversation with
                     Aria
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className={cn(
+                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        generatingReport ? "bg-green-700 text-white hover:bg-green-800" : "text-green-700 hover:bg-green-50"
+                      )}
+                      onClick={onGenerateReport}
+                      disabled={conversationState !== ConversationState.ACTIVE || generatingReport}
+                    >
+                      {generatingReport ? (
+                        <>
+                          <LoaderIcon className="w-6 h-6 mr-2 animate-spin" />
+                          Generating Report
+                        </>
+                      ) : (
+                        <>
+                          <SquareActivity className="w-6 h-6 mr-2" />
+                          Diagnostic Report 
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Generate a diagnostic report based on your conversation with Aria
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
