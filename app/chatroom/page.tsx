@@ -979,44 +979,6 @@ export default function ChatRoomPage() {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className={cn(
-                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
-                        generatingReport
-                          ? "bg-green-700 text-white hover:bg-green-800"
-                          : "text-green-700 hover:bg-green-50"
-                      )}
-                      onClick={onGenerateReport}
-                      disabled={
-                        conversationState !== ConversationState.ACTIVE ||
-                        generatingReport
-                      }
-                    >
-                      {generatingReport ? (
-                        <>
-                          <LoaderIcon className="w-6 h-6 mr-2 animate-spin" />
-                          Generating Report
-                        </>
-                      ) : (
-                        <>
-                          <SquareActivity className="w-6 h-6 mr-2" />
-                          Diagnostic Report
-                        </>
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Generate a diagnostic report based on your conversation with
-                    Aria
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </div>
           </CardContent>
         </Card>
