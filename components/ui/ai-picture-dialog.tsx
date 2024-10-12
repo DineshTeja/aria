@@ -96,7 +96,7 @@ export default function AiPictureDialog({
     setCountdown(3);
   };
 
-  const capturePicture = () => {
+  const capturePicture = async () => {
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
       if (context) {
@@ -108,7 +108,7 @@ export default function AiPictureDialog({
           canvasRef.current.height
         );
         const imageData = canvasRef.current.toDataURL("image/jpeg");
-        const description = processPicture(imageData);
+        const description = await processPicture(imageData);
         if (pictureDescriptionCallback) {
           pictureDescriptionCallback(description);
         }
