@@ -3,9 +3,13 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LoaderIcon, Mic, MicOff, Phone, PhoneOff } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAnam } from "../contexts/AnamContext";
-import { AnamEvent } from "@anam-ai/js-sdk/dist/module/types";
+import {
+  AnamEvent,
+  Message,
+  MessageStreamEvent,
+} from "@anam-ai/js-sdk/dist/module/types";
 import { useToast } from "@/hooks/use-toast";
 import AvatarPlayer from "@/components/avatar-player";
 
@@ -25,6 +29,10 @@ export default function ChatRoomPage() {
   const { toast } = useToast();
 
   const { anamClient } = useAnam();
+
+  const [messageHistory, setMessageHistory] = useState<Message[]>([]);
+  const lastMessageRef = useRef<Message | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const onConnectionEstablished = () => {
     console.log("Connection established");
@@ -67,6 +75,43 @@ export default function ChatRoomPage() {
     console.log("Audio started");
   };
 
+  const onMessageReceived = (messageEvent: MessageStreamEvent) => {
+    console.log("Message received", messageEvent);
+  };
+
+  const onMessageHistoryUpdated = (messages: Message[]) => {
+    console.log("Message HISTORY updated", messages);
+    setMessageHistory(messages);
+  };
+
+  useEffect(() => {
+    const lastMessage = messageHistory[messageHistory.length - 1];
+
+    console.log("Last message", lastMessage, lastMessageRef.current);
+
+    if (lastMessage && lastMessage !== lastMessageRef.current) {
+      lastMessageRef.current = lastMessage;
+
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        console.log("Clearing timeout");
+        clearTimeout(timeoutRef.current);
+      }
+
+      // Set a new timeout
+      timeoutRef.current = setTimeout(() => {
+        console.log("Now it's time for the persona to talk");
+      }, 2000);
+    }
+
+    // Cleanup function
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [messageHistory]);
+
   const startConversation = async () => {
     if (
       !(
@@ -87,6 +132,14 @@ export default function ChatRoomPage() {
     anamClient.addListener(
       AnamEvent.VIDEO_STREAM_STARTED,
       onVideoStartedStreaming
+    );
+    anamClient.addListener(
+      AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
+      onMessageReceived
+    );
+    anamClient.addListener(
+      AnamEvent.MESSAGE_HISTORY_UPDATED,
+      onMessageHistoryUpdated
     );
     try {
       console.log("Starting conversation");
