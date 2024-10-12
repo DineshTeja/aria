@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LoaderIcon, Mic, MicOff, Phone, PhoneOff, MessageSquare } from "lucide-react";
+import { LoaderIcon, Mic, MicOff, Phone, PhoneOff, MessageSquare, SquareActivity } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { useAnam } from "../contexts/AnamContext";
 import {
@@ -19,6 +19,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
+import Markdown from "react-markdown";
+import { debounce } from 'lodash';
 
 // Add this enum definition
 enum ConversationState {
@@ -36,6 +39,9 @@ export default function ChatRoomPage() {
   const [accumulatedMessages, setAccumulatedMessages] = useState<Message[]>([]);
   const [sessionDuration, setSessionDuration] = useState(0);
   const userVideoRef = useRef<HTMLVideoElement>(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [diagnosticReport, setDiagnosticReport] = useState<string | null>(null);
+  const [rawMessages, setRawMessages] = useState<Message[]>([]);
 
   const { anamClient } = useAnam();
 
@@ -82,66 +88,122 @@ export default function ChatRoomPage() {
 
   const onMessageReceived = (messageEvent: MessageStreamEvent) => {
     console.log("Message received", messageEvent);
-    setAccumulatedMessages([...accumulatedMessages, messageEvent]);
+    
+    // Update rawMessages
+    setRawMessages(prevRawMessages => [...prevRawMessages, messageEvent]);
+    
+    // Update accumulatedMessages (existing logic)
+    setAccumulatedMessages(prevMessages => {
+      const newMessages = [...prevMessages];
+      if (messageEvent.role === 'persona' && newMessages.length > 0) {
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage.role === 'persona' && lastMessage.id === messageEvent.id) {
+          if (!lastMessage.content.endsWith(messageEvent.content)) {
+            lastMessage.content += messageEvent.content;
+          }
+          return newMessages;
+        }
+      }
+      // Add as a new message if it doesn't match the previous one
+      return [...newMessages, messageEvent];
+    });
   };
 
   const onMessageHistoryUpdated = (messages: Message[]) => {
     console.log("Message HISTORY updated", messages);
+    setAccumulatedMessages(messages);
+    // Update rawMessages with the full message history
+    setRawMessages(messages);
   };
 
-  const startConversation = async () => {
-    if (
-      !(
-        conversationState === ConversationState.INACTIVE &&
-        !anamClient.isStreaming()
-      )
-    ) {
+  const debouncedStartConversation = debounce(async () => {
+    if (conversationState !== ConversationState.INACTIVE || anamClient.isStreaming()) {
       return;
     }
     setConversationState(ConversationState.LOADING);
-    anamClient.addListener(
-      AnamEvent.CONNECTION_ESTABLISHED,
-      onConnectionEstablished
-    );
-    anamClient.addListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
-    anamClient.addListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
-    anamClient.addListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
-    anamClient.addListener(
-      AnamEvent.VIDEO_STREAM_STARTED,
-      onVideoStartedStreaming
-    );
-    anamClient.addListener(
-      AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED,
-      onMessageReceived
-    );
-    anamClient.addListener(
-      AnamEvent.MESSAGE_HISTORY_UPDATED,
-      onMessageHistoryUpdated
-    );
     try {
-      console.log("Starting conversation");
-      console.log(anamClient.isStreaming());
+      // Remove all existing listeners before adding new ones
+      anamClient.removeListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.removeListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+      anamClient.removeListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
+      anamClient.removeListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
+      anamClient.removeListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
+      anamClient.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+
+      // Add listeners
+      anamClient.addListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.addListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.addListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+      anamClient.addListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
+      anamClient.addListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
+      anamClient.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
+      anamClient.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+
       await anamClient.streamToVideoAndAudioElements("video", "audio");
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast({
-          title: "Persona Busy",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Unknown Error",
-          description: `An unknown error occurred: ${error}`,
-          variant: "destructive",
-        });
-        console.error(error);
-      }
+    } catch (error) {
+      console.error("Error starting conversation:", error);
+      setConversationState(ConversationState.INACTIVE);
+      toast({
+        title: "Connection Error",
+        description: "Failed to start the conversation. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, 500);
+
+  const startConversation = async () => {
+    setAccumulatedMessages([]);
+    setRawMessages([]);
+    setConversationState(ConversationState.LOADING);
+
+    setGeneratingReport(false);
+    setDiagnosticReport(null);
+    try {
+      // Remove all existing listeners before adding new ones
+      anamClient.removeListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.removeListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+      anamClient.removeListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
+      anamClient.removeListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
+      anamClient.removeListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
+      anamClient.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+
+      // Add listeners
+      anamClient.addListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.addListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.addListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+      anamClient.addListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
+      anamClient.addListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
+      anamClient.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
+      anamClient.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+
+      await anamClient.streamToVideoAndAudioElements("video", "audio");
+      setConversationState(ConversationState.ACTIVE);
+    } catch (error) {
+      console.error("Error starting conversation:", error);
+      setConversationState(ConversationState.INACTIVE);
+      toast({
+        title: "Connection Error",
+        description: "Failed to start the conversation. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const stopConversation = () => {
+    debouncedStartConversation.cancel(); // Cancel any pending start attempts
     anamClient.stopStreaming();
+    
+    // Remove all listeners
+    anamClient.removeListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+    anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+    anamClient.removeListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+    anamClient.removeListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
+    anamClient.removeListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
+    anamClient.removeListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
+    anamClient.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+
     toast({
       title: "Conversation Stopped",
       description: "The conversation has been stopped.",
@@ -153,6 +215,10 @@ export default function ChatRoomPage() {
     
     // Clear message history
     setAccumulatedMessages([]);
+    setRawMessages([]);
+
+    setGeneratingReport(false);
+    setDiagnosticReport(null);
     
     // Turn off the microphone
     setMicEnabled(false);
@@ -167,7 +233,24 @@ export default function ChatRoomPage() {
   };
 
   const getAIResponse = async () => {
-    const allLines = accumulatedMessages
+    if (rawMessages.length === 0) {
+      const bufferTime = 2000;
+      const startTime = Date.now();
+      
+      while (Date.now() - startTime < bufferTime) {
+        if (rawMessages.length > 0) {
+          break; 
+        }
+        await new Promise(resolve => setTimeout(resolve, 100)); 
+      }
+
+      if (rawMessages.length === 0) {
+        console.log("No messages received after 2-second buffer. Aborting AI response.");
+        return;
+      }
+    }
+
+    const allLines = rawMessages
       .map((message: Message) => message.content)
       .join("\n");
 
@@ -201,7 +284,21 @@ export default function ChatRoomPage() {
       }
 
       console.log("Complete AI response:", aiResponse);
-      anamClient.talk(aiResponse);
+      
+      // Check if the session is active before calling talk
+      if (conversationState === ConversationState.ACTIVE) {
+        try {
+          await anamClient.talk(aiResponse);
+        } catch (talkError) {
+          console.error("Error calling anamClient.talk:", talkError);
+          // Attempt to restart the session
+          await startConversation();
+          // Try talking again after restarting
+          await anamClient.talk(aiResponse);
+        }
+      } else {
+        console.warn("Cannot call talk: Conversation is not active");
+      }
     } catch (error) {
       console.error("Error getting AI response:", error);
       toast({
@@ -216,12 +313,41 @@ export default function ChatRoomPage() {
     if (micIsEnabled) {
       setMicEnabled(false);
       anamClient.muteInputAudio();
+      console.log("Getting AI response", accumulatedMessages);
+
       getAIResponse();
     } else {
       setMicEnabled(true);
       anamClient.unmuteInputAudio();
+    }
+  };
 
-      setAccumulatedMessages([]);
+  const onGenerateReport = async () => {
+    setGeneratingReport(true);
+    try {
+      const response = await fetch("/api/generate-report", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages: accumulatedMessages }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const report = await response.text();
+      setDiagnosticReport(report);
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate diagnostic report",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingReport(false);
     }
   };
 
@@ -257,9 +383,9 @@ export default function ChatRoomPage() {
       <main className="min-h-screen p-4 sm:p-8 mx-auto max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Aria Card */}
-          <Card className="bg-card text-card-foreground lg:col-span-2 overflow-hidden">
+          <Card className="text-card-foreground lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-2xl font-light text-green-700">Aria</CardTitle>
+              <CardTitle className="text-2xl font-light text-green-700">Talk to Aria</CardTitle>
               <div className="flex items-center space-x-2">
                 <Badge variant={conversationState === ConversationState.ACTIVE ? "default" : "secondary"}>
                   {conversationState === ConversationState.ACTIVE ? "Active" : 
@@ -273,14 +399,14 @@ export default function ChatRoomPage() {
               </div>
             </CardHeader>
             <Separator className="my-2" />
-            <CardContent className="p-0 h-[calc(60vh-80px)] relative">
+            <CardContent className="p-0 h-[calc(60vh-80px)] bg-transparent">
               {conversationState !== ConversationState.INACTIVE &&
-                <div className="rounded-lg overflow-hidden h-full p-3">
+                <div className="rounded-lg bg-transparent overflow-hidden h-full p-3">
                   <AvatarPlayer />
                 </div>
               }
               {conversationState === ConversationState.INACTIVE && (
-                <div className="absolute inset-0 flex items-center justify-center bg-transparent">
+                <div className="flex items-center justify-center h-full">
                   <div className="text-center max-w-md mx-auto px-4">
                     <div className="relative w-80 h-80 mx-auto mb-6">
                       <Image
@@ -299,47 +425,107 @@ export default function ChatRoomPage() {
                   </div>
                 </div>
               )}
-              {conversationState === ConversationState.LOADING && (
-                <div className="absolute inset-0 flex items-center justify-center bg-transparent">
-                  <LoaderIcon className="w-10 h-10 animate-spin text-green-700" />
-                </div>
-              )}
             </CardContent>
           </Card>
 
           {/* Patient Interaction Card */}
           <Card className="bg-card text-card-foreground">
             <CardHeader className="pb-2">
-              <CardTitle className="text-2xl font-light text-green-700">You</CardTitle>
+              <CardTitle className="text-2xl font-light text-green-700">Transcription</CardTitle>
             </CardHeader>
             <Separator className="my-2" />
-            <CardContent className="p-4 h-[calc(60vh-80px)]">
-              {conversationState === ConversationState.ACTIVE && (
-                <div className="mb-4">
+            <CardContent className="p-4 h-[calc(60vh-80px)] flex flex-col">
+              {conversationState === ConversationState.ACTIVE ? (
+                <div className="mb-4 h-48">
                   <video
                     ref={userVideoRef}
                     autoPlay
                     muted
                     playsInline
-                    className="w-full h-48 object-cover rounded-lg"
+                    className="w-full h-full object-cover rounded-lg"
                   />
                 </div>
-              )}
-              <ScrollArea className="h-[calc(100%-8rem)] pr-4">
+              ) : conversationState === ConversationState.LOADING ? (
+                <Skeleton isLoading={true} className="mb-4 h-48 w-full" />
+              ) : null}
+              <ScrollArea className="flex-grow pr-4">
                 <div className="space-y-4">
-                  {accumulatedMessages.map((message, index) => (
-                    <div key={index} className="flex items-start space-x-2 bg-green-50 p-3 rounded-lg">
-                      <MessageSquare className="w-5 h-5 text-green-700 mt-1 flex-shrink-0" />
-                      <p className="text-sm text-green-800">{message.content}</p>
+                  {accumulatedMessages.length === 0 ? (
+                    <div className="flex items-start space-x-3 p-4 rounded-lg bg-blue-50">
+                      <div className="flex-shrink-0">
+                        <Image
+                          src="/aria-avatar.png"
+                          alt="Aria"
+                          width={40}
+                          height={40}
+                          className="rounded-full"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-blue-800">Aria</p>
+                        <p className="text-sm text-blue-700 leading-relaxed mt-1">
+                          Hey there! I&apos;m Aria, your AI health assistant. I&apos;m here to listen, provide information, and offer guidance on general health topics. Feel free to ask me about symptoms, wellness tips, or any health-related questions you might have. Remember, I&apos;m here to support you, but for specific medical advice, always consult with a qualified healthcare professional.
+                        </p>
+                        <p className="text-sm text-blue-600 mt-2 italic">
+                          How can I assist you with your health today?
+                        </p>
+                      </div>
                     </div>
-                  ))}
-                  {accumulatedMessages.length === 0 && (
-                    <p className="text-sm text-muted-foreground italic">Your conversation with Aria will appear here...</p>
+                  ) : (
+                    accumulatedMessages.map((message, index) => (
+                      <div 
+                        key={index} 
+                        className={`flex items-start space-x-3 p-3 rounded-lg ${
+                          message.role === 'user' ? 'bg-green-50' : 'bg-blue-50'
+                        }`}
+                      >
+                        <div className="flex-shrink-0 mt-1">
+                          {message.role === 'user' ? (
+                            <MessageSquare className="w-5 h-5 text-green-700" />
+                          ) : (
+                            <Image
+                              src="/aria-avatar.png"
+                              alt="Aria"
+                              width={20}
+                              height={20}
+                              className="rounded-full"
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className={`text-sm font-semibold ${
+                            message.role === 'user' ? 'text-green-800' : 'text-blue-800'
+                          }`}>
+                            {message.role === 'user' ? 'You' : 'Aria'}
+                          </p>
+                          <p className={`text-sm mt-1 ${
+                            message.role === 'user' ? 'text-green-700' : 'text-blue-700'
+                          }`}>
+                            {message.content}
+                          </p>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </ScrollArea>
             </CardContent>
           </Card>
+
+          {/* Diagnostic Report Card */}
+          {diagnosticReport && (
+            <Card className="bg-card text-card-foreground lg:col-span-3">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-2xl font-light text-green-700">Diagnostic Report</CardTitle>
+              </CardHeader>
+              <Separator className="my-2" />
+              <CardContent className="p-4 max-h-[60vh] overflow-y-auto">
+                <Markdown>
+                  {diagnosticReport}
+                </Markdown>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Control Panel */}
@@ -361,6 +547,8 @@ export default function ChatRoomPage() {
                           : "bg-green-700 hover:bg-green-800"
                       )}
                       onClick={() => {
+                        setAccumulatedMessages([]);
+                        setRawMessages([]);
                         if (conversationState === ConversationState.ACTIVE) {
                           stopConversation();
                         } else if (conversationState === ConversationState.INACTIVE) {
@@ -410,7 +598,7 @@ export default function ChatRoomPage() {
                       onClick={onMicTriggered}
                       disabled={conversationState !== ConversationState.ACTIVE}
                     >
-                      {micIsEnabled ? (
+                      {!micIsEnabled ? (
                         <>
                           <MicOff className="w-6 h-6 mr-2" />
                           Unmute
@@ -425,6 +613,38 @@ export default function ChatRoomPage() {
                   </TooltipTrigger>
                   <TooltipContent>
                     {micIsEnabled ? "Unmute your microphone" : "Mute your microphone"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className={cn(
+                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        generatingReport ? "bg-green-700 text-white hover:bg-green-800" : "text-green-700 hover:bg-green-50"
+                      )}
+                      onClick={onGenerateReport}
+                      disabled={conversationState !== ConversationState.ACTIVE || generatingReport}
+                    >
+                      {generatingReport ? (
+                        <>
+                          <LoaderIcon className="w-6 h-6 mr-2 animate-spin" />
+                          Generating Report
+                        </>
+                      ) : (
+                        <>
+                          <SquareActivity className="w-6 h-6 mr-2" />
+                          Diagnostic Report 
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Generate a diagnostic report based on your conversation with Aria
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
