@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 import openai
 from openai import OpenAI
 import supabase
@@ -14,23 +14,21 @@ load_dotenv("../../.env.local")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-class Category(str, Enum):
-    CATEGORY_ONE = "cardiovascular"
-    CATEGORY_TWO = "respiratory"
-    CATEGORY_THREE = "endocrine"
-    CATEGORY_FOUR = "gastrointestinal"
-    CATEGORY_FIVE = "hematological"
-    CATEGORY_SIX = "infectious"
-    CATEGORY_SEVEN = "musculoskeletal"
-    CATEGORY_EIGHT = "autoimmune"
-    CATEGORY_NINE = "cancer"
-    CATEGORY_TEN = "neurological"
-
-
 class ConceptDetails(BaseModel):
     title: str
     summary: str
-    category: Category
+    category: Literal[
+        "cardiovascular",
+        "respiratory",
+        "endocrine",
+        "gastrointestinal",
+        "hematological",
+        "infectious",
+        "musculoskeletal",
+        "autoimmune",
+        "cancer",
+        "neurological",
+    ]
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
@@ -92,7 +90,7 @@ if __name__ == "__main__":
             title, summary, paragraph, embedding, category = result
             save_to_supabase(title, summary, paragraph, embedding, category)
 
-        with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+        with multiprocessing.Pool(5) as pool:
             for paragraph in paragraphs:
                 pool.apply_async(
                     process_paragraph, args=(paragraph,), callback=update_progress
