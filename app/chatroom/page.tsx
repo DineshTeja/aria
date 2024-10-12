@@ -133,23 +133,16 @@ export default function ChatRoomPage() {
           Person
         </div>
         <div className="h-full w-full rounded-lg bg-zinc-800 text-white">
-          {conversationState === ConversationState.ACTIVE ? (
-            <div
-              id="video-container"
-              className="justify-center flex bg-grey-400 border-none w-[512px] h-[512px] rounded-xl overflow-hidden"
-            >
-              <video id="video" width="100%" autoPlay playsInline></video>
-              <audio id="audio" autoPlay></audio>
+          <AvatarPlayer />
+          {conversationState === ConversationState.INACTIVE ? (
+            <div className="flex items-center justify-center h-full">
+              <span>Conversation not active</span>
             </div>
           ) : conversationState === ConversationState.LOADING ? (
             <div className="flex items-center justify-center h-full">
               <LoaderIcon className="w-7 h-7 animate-spin" />
             </div>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <span>Conversation not active</span>
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
 
