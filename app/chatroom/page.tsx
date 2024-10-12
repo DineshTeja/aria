@@ -2,7 +2,14 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LoaderIcon, Mic, MicOff, Phone, PhoneOff, MessageSquare } from "lucide-react";
+import {
+  LoaderIcon,
+  Mic,
+  MicOff,
+  Phone,
+  PhoneOff,
+  MessageSquare,
+} from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { useAnam } from "../contexts/AnamContext";
 import {
@@ -18,7 +25,13 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import AiPictureDialog from "@/components/ui/ai-picture-dialog";
 
 // Add this enum definition
 enum ConversationState {
@@ -36,6 +49,7 @@ export default function ChatRoomPage() {
   const [accumulatedMessages, setAccumulatedMessages] = useState<Message[]>([]);
   const [sessionDuration, setSessionDuration] = useState(0);
   const userVideoRef = useRef<HTMLVideoElement>(null);
+  const [aiPictureDialogOpen, setAiPictureDialogOpen] = useState(true);
 
   const { anamClient } = useAnam();
 
@@ -147,22 +161,52 @@ export default function ChatRoomPage() {
       description: "The conversation has been stopped.",
     });
     setConversationState(ConversationState.INACTIVE);
-    
+
     // Reset session duration
     setSessionDuration(0);
-    
+
     // Clear message history
     setAccumulatedMessages([]);
-    
+
     // Turn off the microphone
     setMicEnabled(false);
     anamClient.muteInputAudio();
-    
+
     // Stop the camera
     if (userVideoRef.current && userVideoRef.current.srcObject) {
-      const tracks = (userVideoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
+      const tracks = (
+        userVideoRef.current.srcObject as MediaStream
+      ).getTracks();
+      tracks.forEach((track) => track.stop());
       userVideoRef.current.srcObject = null;
+    }
+  };
+
+  const getAIClassification = async () => {
+    const allLines = accumulatedMessages
+      .map((message: Message) => message.content)
+      .join("\n");
+
+    try {
+      const response = await fetch("/api/classify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ patientInput: allLines }),
+      });
+
+      const { needsPicture } = await response.json();
+
+      if (needsPicture) {
+        anamClient.talk(
+          "To help me better understand your condition, could I please see a picture of it?"
+        );
+      } else {
+        getAIResponse();
+      }
+    } catch (error) {
+      console.error("Error getting AI classification:", error);
     }
   };
 
@@ -237,17 +281,20 @@ export default function ChatRoomPage() {
 
   useEffect(() => {
     if (conversationState === ConversationState.ACTIVE) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then((stream) => {
           if (userVideoRef.current) {
             userVideoRef.current.srcObject = stream;
           }
         })
-        .catch(err => console.error("Error accessing camera:", err));
+        .catch((err) => console.error("Error accessing camera:", err));
     } else {
       if (userVideoRef.current && userVideoRef.current.srcObject) {
-        const tracks = (userVideoRef.current.srcObject as MediaStream).getTracks();
-        tracks.forEach(track => track.stop());
+        const tracks = (
+          userVideoRef.current.srcObject as MediaStream
+        ).getTracks();
+        tracks.forEach((track) => track.stop());
       }
     }
   }, [conversationState]);
@@ -259,26 +306,39 @@ export default function ChatRoomPage() {
           {/* Aria Card */}
           <Card className="bg-card text-card-foreground lg:col-span-2 overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-2xl font-light text-green-700">Aria</CardTitle>
+              <CardTitle className="text-2xl font-light text-green-700">
+                Aria
+              </CardTitle>
               <div className="flex items-center space-x-2">
-                <Badge variant={conversationState === ConversationState.ACTIVE ? "default" : "secondary"}>
-                  {conversationState === ConversationState.ACTIVE ? "Active" : 
-                   conversationState === ConversationState.LOADING ? "Connecting..." : "Inactive"}
+                <Badge
+                  variant={
+                    conversationState === ConversationState.ACTIVE
+                      ? "default"
+                      : "secondary"
+                  }
+                >
+                  {conversationState === ConversationState.ACTIVE
+                    ? "Active"
+                    : conversationState === ConversationState.LOADING
+                    ? "Connecting..."
+                    : "Inactive"}
                 </Badge>
                 {conversationState === ConversationState.ACTIVE && (
                   <Badge variant="outline" className="text-green-700">
-                    {new Date(sessionDuration * 1000).toISOString().substr(11, 8)}
+                    {new Date(sessionDuration * 1000)
+                      .toISOString()
+                      .substr(11, 8)}
                   </Badge>
                 )}
               </div>
             </CardHeader>
             <Separator className="my-2" />
             <CardContent className="p-0 h-[calc(60vh-80px)] relative">
-              {conversationState !== ConversationState.INACTIVE &&
+              {conversationState !== ConversationState.INACTIVE && (
                 <div className="rounded-lg overflow-hidden h-full p-3">
                   <AvatarPlayer />
                 </div>
-              }
+              )}
               {conversationState === ConversationState.INACTIVE && (
                 <div className="absolute inset-0 flex items-center justify-center bg-transparent">
                   <div className="text-center max-w-md mx-auto px-4">
@@ -291,10 +351,13 @@ export default function ChatRoomPage() {
                         className="rounded-full border-4 border-green-100"
                       />
                     </div>
-                    <h3 className="text-2xl font-semibold text-green-700 mb-3">Hi, I&apos;m Aria</h3>
+                    <h3 className="text-2xl font-semibold text-green-700 mb-3">
+                      Hi, I&apos;m Aria
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      I&apos;m here to listen and chat whenever you&apos;re ready. 
-                      Feel free to start our session when you&apos;re comfortable.
+                      I&apos;m here to listen and chat whenever you&apos;re
+                      ready. Feel free to start our session when you&apos;re
+                      comfortable.
                     </p>
                   </div>
                 </div>
@@ -310,7 +373,9 @@ export default function ChatRoomPage() {
           {/* Patient Interaction Card */}
           <Card className="bg-card text-card-foreground">
             <CardHeader className="pb-2">
-              <CardTitle className="text-2xl font-light text-green-700">You</CardTitle>
+              <CardTitle className="text-2xl font-light text-green-700">
+                You
+              </CardTitle>
             </CardHeader>
             <Separator className="my-2" />
             <CardContent className="p-4 h-[calc(60vh-80px)]">
@@ -328,13 +393,20 @@ export default function ChatRoomPage() {
               <ScrollArea className="h-[calc(100%-8rem)] pr-4">
                 <div className="space-y-4">
                   {accumulatedMessages.map((message, index) => (
-                    <div key={index} className="flex items-start space-x-2 bg-green-50 p-3 rounded-lg">
+                    <div
+                      key={index}
+                      className="flex items-start space-x-2 bg-green-50 p-3 rounded-lg"
+                    >
                       <MessageSquare className="w-5 h-5 text-green-700 mt-1 flex-shrink-0" />
-                      <p className="text-sm text-green-800">{message.content}</p>
+                      <p className="text-sm text-green-800">
+                        {message.content}
+                      </p>
                     </div>
                   ))}
                   {accumulatedMessages.length === 0 && (
-                    <p className="text-sm text-muted-foreground italic">Your conversation with Aria will appear here...</p>
+                    <p className="text-sm text-muted-foreground italic">
+                      Your conversation with Aria will appear here...
+                    </p>
                   )}
                 </div>
               </ScrollArea>
@@ -363,7 +435,9 @@ export default function ChatRoomPage() {
                       onClick={() => {
                         if (conversationState === ConversationState.ACTIVE) {
                           stopConversation();
-                        } else if (conversationState === ConversationState.INACTIVE) {
+                        } else if (
+                          conversationState === ConversationState.INACTIVE
+                        ) {
                           startConversation();
                         }
                       }}
@@ -405,7 +479,9 @@ export default function ChatRoomPage() {
                       size="lg"
                       className={cn(
                         "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
-                        micIsEnabled ? "bg-green-700 text-white hover:bg-green-800" : "text-green-700 hover:bg-green-50"
+                        micIsEnabled
+                          ? "bg-green-700 text-white hover:bg-green-800"
+                          : "text-green-700 hover:bg-green-50"
                       )}
                       onClick={onMicTriggered}
                       disabled={conversationState !== ConversationState.ACTIVE}
@@ -424,13 +500,19 @@ export default function ChatRoomPage() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {micIsEnabled ? "Unmute your microphone" : "Mute your microphone"}
+                    {micIsEnabled
+                      ? "Unmute your microphone"
+                      : "Mute your microphone"}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
           </CardContent>
         </Card>
+        <AiPictureDialog
+          open={aiPictureDialogOpen}
+          setOpen={setAiPictureDialogOpen}
+        />
       </main>
     </Navbar>
   );
