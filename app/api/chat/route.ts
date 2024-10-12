@@ -96,7 +96,6 @@ async function aiDoctorPipeline(
     - Incorporate additional medical model information when relevant.
 
     Remember: Focus on what the patient can do right now to feel better or get proper care.`
-
   const medicalQuery = `Provide medical analysis for these symptoms: ${patientInput}`;
   const medicalInfo = await medicalLlamaQuery(medicalQuery);
 

@@ -28,6 +28,9 @@ import AiPictureDialog from "@/components/ui/ai-picture-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import Markdown from "react-markdown";
 import { debounce } from "lodash";
+import { Skeleton } from "@/components/ui/skeleton";
+import Markdown from "react-markdown";
+import { debounce } from 'lodash';
 
 // Add this enum definition
 enum ConversationState {
@@ -140,6 +143,16 @@ export default function ChatRoomPage() {
           lastMessage.role === "persona" &&
           lastMessage.id === messageEvent.id
         ) {
+    
+    // Update rawMessages
+    setRawMessages(prevRawMessages => [...prevRawMessages, messageEvent]);
+    
+    // Update accumulatedMessages (existing logic)
+    setAccumulatedMessages(prevMessages => {
+      const newMessages = [...prevMessages];
+      if (messageEvent.role === 'persona' && newMessages.length > 0) {
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage.role === 'persona' && lastMessage.id === messageEvent.id) {
           if (!lastMessage.content.endsWith(messageEvent.content)) {
             lastMessage.content += messageEvent.content;
           }
@@ -166,6 +179,10 @@ export default function ChatRoomPage() {
       conversationState !== ConversationState.INACTIVE ||
       anamClient.isStreaming()
     ) {
+  };
+
+  const debouncedStartConversation = debounce(async () => {
+    if (conversationState !== ConversationState.INACTIVE || anamClient.isStreaming()) {
       return;
     }
     setConversationState(ConversationState.LOADING);
@@ -220,6 +237,22 @@ export default function ChatRoomPage() {
         AnamEvent.MESSAGE_HISTORY_UPDATED,
         onMessageHistoryUpdated
       );
+      anamClient.removeListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.removeListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+      anamClient.removeListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
+      anamClient.removeListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
+      anamClient.removeListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
+      anamClient.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+
+      // Add listeners
+      anamClient.addListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.addListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.addListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+      anamClient.addListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
+      anamClient.addListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
+      anamClient.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
+      anamClient.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
 
       await anamClient.streamToVideoAndAudioElements("video", "audio");
     } catch (error) {
@@ -291,6 +324,22 @@ export default function ChatRoomPage() {
         AnamEvent.MESSAGE_HISTORY_UPDATED,
         onMessageHistoryUpdated
       );
+      anamClient.removeListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.removeListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.removeListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+      anamClient.removeListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
+      anamClient.removeListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
+      anamClient.removeListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
+      anamClient.removeListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
+
+      // Add listeners
+      anamClient.addListener(AnamEvent.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      anamClient.addListener(AnamEvent.AUDIO_STREAM_STARTED, onAudioStarted);
+      anamClient.addListener(AnamEvent.CONNECTION_CLOSED, onConnectionClosed);
+      anamClient.addListener(AnamEvent.VIDEO_PLAY_STARTED, onVideoStartedPlaying);
+      anamClient.addListener(AnamEvent.VIDEO_STREAM_STARTED, onVideoStartedStreaming);
+      anamClient.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, onMessageReceived);
+      anamClient.addListener(AnamEvent.MESSAGE_HISTORY_UPDATED, onMessageHistoryUpdated);
 
       await anamClient.streamToVideoAndAudioElements("video", "audio");
       setConversationState(ConversationState.ACTIVE);
@@ -348,7 +397,7 @@ export default function ChatRoomPage() {
 
     setGeneratingReport(false);
     setDiagnosticReport(null);
-
+    
     // Turn off the microphone
     setMicEnabled(false);
     anamClient.muteInputAudio();
@@ -364,21 +413,10 @@ export default function ChatRoomPage() {
   };
 
   const getAIClassification = async () => {
-    if (rawMessages.length === 0) {
-      const bufferTime = 2000;
-      const startTime = Date.now();
-      
-      while (Date.now() - startTime < bufferTime) {
-        if (rawMessages.length > 0) {
-          break; 
-        }
-        await new Promise(resolve => setTimeout(resolve, 100)); 
-      }
-
-      if (rawMessages.length === 0) {
-        console.log("No messages received after 2-second buffer. Aborting AI response.");
-        return;
-      }
+    const messagesAvailable = await waitForMessages();
+    if (!messagesAvailable) {
+      console.log("Aborting AI response due to no messages.");
+      return;
     }
 
     const allLines = rawMessages
@@ -564,9 +602,7 @@ export default function ChatRoomPage() {
           {/* Aria Card */}
           <Card className="text-card-foreground lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-2xl font-light text-green-700">
-                Talk to Aria
-              </CardTitle>
+              <CardTitle className="text-2xl font-light text-green-700">Talk to Aria</CardTitle>
               <div className="flex items-center space-x-2">
                 <Badge
                   variant={
@@ -592,7 +628,7 @@ export default function ChatRoomPage() {
             </CardHeader>
             <Separator className="my-2" />
             <CardContent className="p-0 h-[calc(60vh-80px)] bg-transparent">
-              {conversationState !== ConversationState.INACTIVE && (
+              {conversationState !== ConversationState.INACTIVE &&
                 <div className="rounded-lg bg-transparent overflow-hidden h-full p-3">
                   <AvatarPlayer />
                 </div>
@@ -688,22 +724,14 @@ export default function ChatRoomPage() {
                           )}
                         </div>
                         <div className="flex-1">
-                          <p
-                            className={`text-sm font-semibold ${
-                              message.role === "user"
-                                ? "text-green-800"
-                                : "text-blue-800"
-                            }`}
-                          >
-                            {message.role === "user" ? "You" : "Aria"}
+                          <p className={`text-sm font-semibold ${
+                            message.role === 'user' ? 'text-green-800' : 'text-blue-800'
+                          }`}>
+                            {message.role === 'user' ? 'You' : 'Aria'}
                           </p>
-                          <p
-                            className={`text-sm mt-1 ${
-                              message.role === "user"
-                                ? "text-green-700"
-                                : "text-blue-700"
-                            }`}
-                          >
+                          <p className={`text-sm mt-1 ${
+                            message.role === 'user' ? 'text-green-700' : 'text-blue-700'
+                          }`}>
                             {message.content}
                           </p>
                         </div>
@@ -822,6 +850,38 @@ export default function ChatRoomPage() {
                     {micIsEnabled
                       ? "Unmute your microphone"
                       : "Mute your microphone"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className={cn(
+                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        generatingReport ? "bg-green-700 text-white hover:bg-green-800" : "text-green-700 hover:bg-green-50"
+                      )}
+                      onClick={onGenerateReport}
+                      disabled={conversationState !== ConversationState.ACTIVE || generatingReport}
+                    >
+                      {generatingReport ? (
+                        <>
+                          <LoaderIcon className="w-6 h-6 mr-2 animate-spin" />
+                          Generating Report
+                        </>
+                      ) : (
+                        <>
+                          <SquareActivity className="w-6 h-6 mr-2" />
+                          Diagnostic Report 
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Generate a diagnostic report based on your conversation with Aria
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
