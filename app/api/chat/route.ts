@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Groq } from "groq-sdk";
 import { searchKnowledgeBase } from "../search/services";
+import { Database } from "@/lib/types/schema";
+
+type KnowledgeBaseItem =
+  Database["public"]["Functions"]["match_documents"]["Returns"][number];
 
 type GroqMessageParam = {
   role: "system" | "user" | "assistant";
@@ -35,10 +39,7 @@ async function searchMedicalKnowledgeBase(query: string): Promise<string> {
     if (error) {
       throw error;
     }
-    // TODO: Figure out proper string format for this
-    return data
-      .map((item: object) => JSON.stringify({ ...item, similarity: undefined }))
-      .join("\n");
+    return data.map((item: KnowledgeBaseItem) => item.summary).join("\n");
   } catch (error) {
     console.error("Error searching knowledge base:", error);
     return "";
@@ -51,6 +52,8 @@ async function* chatWithModelStream(
   const stream = await client.chat.completions.create({
     messages,
     model: "llama3-70b-8192",
+    // model: "llama-3.1-8b-instant",
+    // model: "llama-3.2-11b-text-preview",
     // model: "mixtral-8x7b-32768",
     temperature: 0.7,
     max_tokens: 1000,
@@ -98,21 +101,22 @@ async function aiDoctorPipeline(
 
     1. Provide immediate, actionable advice for patient's symptoms.
     2. If diagnosis is clear:
-    - Start with concise treatment recommendations.
     - Briefly explain diagnosis if necessary.
-    - End with [DIAGNOSIS_PROVIDED]
+    - Start with concise treatment recommendations.
     3. If more information needed:
     - Offer safe, general advice based on symptoms.
-    - Ask 1-2 critical questions for clarification.
-    - End with [MORE_INFO_NEEDED]
+    - Ask at most 1-2 critical questions for clarification.
+    4. If the patient asks about potential medical conditions and you have context, provide medical possibilities. Only limited to the context you have.
 
     Rules:
     - Prioritize practical guidance over medical explanations.
     - Be direct and concise. No unnecessary words.
-    - Don't use [DIAGNOSIS_PROVIDED] if asking any questions.
-    - Incorporate additional medical model information when relevant.
+    - Write as if you would speak in an urgent setting.
+    - Incorporate and reference additional medical model information when relevant.
+    - At most 2 to 3 sentences total. Use complete sentences.
+    - Do not output Markdown formatting.
 
-    Remember: Focus on what the patient can do right now to feel better or get proper care.`;
+    Remember: Focus on what the patient can do right now to feel better or get proper care. The fewer words you can use to give them the information they need, the better`;
   const medicalQuery = `Provide medical analysis for these symptoms: ${patientInput}`;
   const medicalInfo = await medicalLlamaQuery(medicalQuery);
   const knowledgeBaseInfo = await searchMedicalKnowledgeBase(medicalQuery);
@@ -122,7 +126,7 @@ async function aiDoctorPipeline(
   console.log(`Medical Llama info: ${medicalInfo}`);
 
   const messages: GroqMessageParam[] = [
-    { role: "system", content: systemPrompt },
+    { role: "user", content: systemPrompt },
     {
       role: "user",
       content: `Patient input: ${patientInput}\n\nAdditional information from specialized medical model: ${medicalInfo}\n\nAdditional information from knowledge base: ${knowledgeBaseInfo}`,
