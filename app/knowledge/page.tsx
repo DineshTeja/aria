@@ -36,9 +36,9 @@ export default function KnowledgePage() {
   const [debouncedQuery] = useDebounce(searchQuery, 300);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(categories);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [searchTime, setSearchTime] = useState<number>(0);
+//   const [searchTime, setSearchTime] = useState<number>(0);
   const [page, setPage] = useState<number>(1);
-  const [totalCount, setTotalCount] = useState<number>(0);
+//   const [totalCount, setTotalCount] = useState<number>(0);
   const [hasMore, setHasMore] = useState<boolean>(false);
   const [searchStartTime, setSearchStartTime] = useState<number | null>(null);
 
@@ -47,7 +47,7 @@ export default function KnowledgePage() {
       setSearchStartTime(performance.now());
       setIsLoading(true);
       setKnowledgeItems([]);
-      setTotalCount(0);
+    //   setTotalCount(0);
       setPage(1);
     }
 
@@ -68,14 +68,14 @@ export default function KnowledgePage() {
       console.error('Error fetching knowledge data:', result.error);
     } else {
       setKnowledgeItems(prevItems => reset ? result.data : [...prevItems, ...result.data]);
-      setTotalCount(result.count);
+    //   setTotalCount(result.count);
       setHasMore(result.data.length === 50);
       setPage(prevPage => reset ? 2 : prevPage + 1);
     }
 
     if (reset || currentPage === 1) {
       const endTime = performance.now();
-      setSearchTime(endTime - (searchStartTime || endTime));
+    //   setSearchTime(endTime - (searchStartTime || endTime));
     }
 
     setIsLoading(false);
