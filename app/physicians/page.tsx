@@ -33,7 +33,7 @@ export default function PhysiciansPage() {
   const [debouncedQuery] = useDebounce(searchQuery, 300);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [page, setPage] = useState<number>(1);
-  const [totalCount, setTotalCount] = useState<number>(0);
+//   const [totalCount, setTotalCount] = useState<number>(0);
   const [hasMore, setHasMore] = useState<boolean>(true);
 
   const fetchPhysicians = useCallback(async (reset: boolean = false) => {
@@ -60,7 +60,7 @@ export default function PhysiciansPage() {
       console.error('Error fetching physicians:', result.error);
     } else {
       setPhysicians(prevItems => reset ? result.data : [...prevItems, ...result.data]);
-      setTotalCount(result.count);
+    //   setTotalCount(result.count);
       setHasMore(physicians.length + result.data.length < result.count);
     }
 
