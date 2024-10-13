@@ -12,6 +12,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useDebounce } from "use-debounce";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import states from "@/data/states.json";
 
 type Physician = {
   id: string;
@@ -21,11 +23,13 @@ type Physician = {
   region: string | null;
   photo_url: string | null;
   link: string;
+  locality: string | null;
 };
 
 export default function PhysiciansPage() {
   const [physicians, setPhysicians] = useState<Physician[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedState, setSelectedState] = useState('');
   const [debouncedQuery] = useDebounce(searchQuery, 300);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -37,6 +41,7 @@ export default function PhysiciansPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: debouncedQuery,
+          state: selectedState,
         }),
       });
 
@@ -51,20 +56,35 @@ export default function PhysiciansPage() {
     };
 
     fetchPhysicians();
-  }, [debouncedQuery]);
+  }, [debouncedQuery, selectedState]);
 
   return (
     <Navbar>
       <main className="min-h-screen mx-auto max-w-7xl">
         <Card className="bg-card text-card-foreground h-full flex flex-col">
-          <CardHeader className={`flex flex-col pb-1 ${GeistSans.className}`}>
-            {/* Search Bar */}
-            <Input
-              type="text"
-              placeholder="Search physicians..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <CardHeader className={`flex flex-col pb-3 ${GeistSans.className}`}>
+            <div className="flex space-x-2">
+              <Input
+                type="text"
+                placeholder="Search physicians..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-grow"
+              />
+              <Select key={selectedState} value={selectedState} onValueChange={setSelectedState}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select State" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="states">All States</SelectItem>
+                  {states.states.map((state) => (
+                    <SelectItem key={state.code} value={state.code}>
+                      {state.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className={`px-4 py-0 flex-grow ${GeistSans.className}`}>
             {isLoading ? (
@@ -107,7 +127,7 @@ export default function PhysiciansPage() {
                         </Link>
                       </div>
                       <p className="text-sm text-muted-foreground mt-2">
-                        {physician.region}
+                        {physician.locality}, {physician.region}
                       </p>
                     </Card>
                   ))}
@@ -120,4 +140,3 @@ export default function PhysiciansPage() {
     </Navbar>
   );
 }
-
