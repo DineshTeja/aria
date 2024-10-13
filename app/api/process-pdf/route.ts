@@ -41,22 +41,25 @@ export async function POST(request: NextRequest) {
     // Use gpt4o for summarization
     const summary = await summarizeTextWithGPT4O(textContent);
 
-    // Clean up the temporary file
-    await fs.unlink(filePath);
-
     // Store file in Supabase storage
     const fileName = `public/${file.name}`;
-
+    
+    // Read the file content before deleting it
     const fileContent = await fs.readFile(filePath);
+
+    console.log(fileContent);
 
     const { data: fileData, error: fileError } = await supabase
       .storage
       .from('pdf_knowledge_files')
-      .upload(fileName, fileContent)
+      .upload(fileName, fileContent);
 
-    if (fileError) {
-      throw new Error(`Failed to upload file: ${fileError.message}`);
+    if (fileError || !fileData) {
+      throw new Error(`Failed to upload file: ${fileError?.message || 'Unknown error'}`);
     }
+
+    // Now, clean up the temporary file after all operations are done
+    await fs.unlink(filePath);
 
     // Update database insertion to include text content and summary
     const { error: dbError } = await supabase
