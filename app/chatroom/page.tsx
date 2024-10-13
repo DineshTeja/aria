@@ -15,6 +15,7 @@ import {
   Folder,
   ExternalLinkIcon,
   Brain,
+  User,
 } from "lucide-react";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAnam } from "../contexts/AnamContext";
@@ -173,6 +174,8 @@ export default function ChatRoomPage() {
   const isSpeakingRef = useRef<boolean>(isSpeaking);
   const didInterruptSpeakingRef = useRef<boolean>(didInterruptSpeaking);
   const micIsEnabledRef = useRef<boolean>(micIsEnabled);
+  const articlesRef = useRef<KnowledgeBaseItem[]>(fetchedArticles);
+  const graphRef = useRef<string | null>(graph);
   const doctorsRef = useRef<Doctor[]>(doctors);
 
   useEffect(() => {
@@ -198,6 +201,14 @@ export default function ChatRoomPage() {
   useEffect(() => {
     micIsEnabledRef.current = micIsEnabled;
   }, [micIsEnabled]);
+
+  useEffect(() => {
+    articlesRef.current = fetchedArticles;
+  }, [fetchedArticles]);
+
+  useEffect(() => {
+    graphRef.current = graph;
+  }, [graph]);
 
   useEffect(() => {
     doctorsRef.current = doctors;
@@ -1132,7 +1143,7 @@ export default function ChatRoomPage() {
                       />
 
                       <ScrollArea className="flex-grow overflow-y-auto">
-                        {(fetchedArticles.length > 0 || graph !== null) && (
+                        {(fetchedArticles.length > 0 || graph !== null || doctors.length > 0) && (
                           <div className="mb-4 flex space-x-2">
                             {fetchedArticles.length > 0 && (
                               <Popover>
@@ -1168,6 +1179,37 @@ export default function ChatRoomPage() {
                                             }
                                           >
                                             <ExternalLinkIcon className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+
+                            {doctors.length > 0 && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="w-full">
+                                    Aria found {doctors.length} relevant doctor{doctors.length > 1 ? 's' : ''}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full max-w-md">
+                                  <div className="max-h-60 overflow-y-auto">
+                                    {doctors.map((doctor, index) => (
+                                      <div key={index} className="p-2 border-b">
+                                        <div className="flex items-center">
+                                          <div className="flex-grow">
+                                            <p className="font-semibold">{doctor.first_name} {doctor.last_name}</p>
+                                            <p className="text-sm text-gray-500">{doctor.speciality}</p>
+                                          </div>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => window.open(doctor.link, '_blank')}
+                                          >
+                                            <User className="h-4 w-4" />
                                           </Button>
                                         </div>
                                       </div>
