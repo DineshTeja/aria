@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { GeistSans } from 'geist/font/sans';
 
 interface KnowledgeManagementModalProps {
   isOpen: boolean;
@@ -66,7 +67,7 @@ const KnowledgeManagementModal: React.FC<KnowledgeManagementModalProps> = ({ isO
         <DialogHeader>
           <DialogTitle>Manage Aria&apos;s Knowledge</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className={`grid gap-4 py-4 ${GeistSans.className}`}>
           <Input
             type="file"
             onChange={handleFileChange}
@@ -90,7 +91,7 @@ const KnowledgeManagementModal: React.FC<KnowledgeManagementModalProps> = ({ isO
             ))}
           </div>
         </div>
-        <div className="flex justify-end space-x-2">
+        <div className={`flex justify-end space-x-2 ${GeistSans.className}`}>
           <Button variant="outline" onClick={onClose} disabled={isUploading}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={isUploading || files.length === 0}>
             {isUploading ? (

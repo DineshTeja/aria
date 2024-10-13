@@ -884,17 +884,17 @@ export default function ChatRoomPage() {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Aria Card */}
           <motion.div
             layout
             className={cn(
               "transition-all duration-500 ease-in-out",
-              showDiagnosticReport ? "lg:col-span-1" : "lg:col-span-2"
+              showDiagnosticReport ? "lg:col-span-2" : "lg:col-span-3"
             )}
           >
-            <Card className="text-card-foreground h-full flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 h-[72px]">
+            <Card className="text-card-foreground h-full flex-grow flex flex-col">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 h-[55px]">
                 <CardTitle className="text-2xl font-light text-green-700">
                   Talk to Aria
                 </CardTitle>
@@ -910,7 +910,7 @@ export default function ChatRoomPage() {
                       ? "Active"
                       : conversationState === ConversationState.LOADING
                       ? "Connecting..."
-                      : "Inactive"}
+                      : "Idle"}
                   </Badge>
                   {conversationState === ConversationState.ACTIVE && (
                     <Badge variant="outline" className="text-green-700">
@@ -927,13 +927,15 @@ export default function ChatRoomPage() {
                 </div>
               </CardHeader>
               <Separator className="my-2" />
-              <CardContent className="p-4 flex-grow flex flex-col">
-                <div className="flex-grow h-[calc(60vh-80px)] flex items-center justify-center">
+              <CardContent className="p-4 flex flex-grow flex-col justify-between">
+                <div className="flex rounded-md items-center justify-center h-[calc(50vh-80px)] overflow-auto">
                   {conversationState !== ConversationState.INACTIVE ? (
-                    <AvatarPlayer />
+                    <div className="w-full h-full rounded-md flex items-center justify-center">
+                      <AvatarPlayer />
+                    </div>
                   ) : (
-                    <div className="text-center">
-                      <div className="w-48 h-48 mx-auto mb-6">
+                    <div className="text-center w-full max-w-sm flex flex-col items-center justify-center h-full">
+                      <div className="w-48 h-48 mb-6">
                         <Image
                           src="/aria-avatar.png"
                           alt="Aria"
@@ -942,21 +944,16 @@ export default function ChatRoomPage() {
                           className="rounded-full border-4 border-green-100"
                         />
                       </div>
-                      <h3 className="text-2xl font-semibold text-green-700 mb-3">
+                      <h3 className="text-2xl font-semibold text-green-700 mb-4">
                         Hi, I&apos;m Aria
                       </h3>
-                      <p
-                        className={`text-sm text-muted-foreground ${GeistSans.className}`}
-                      >
-                        I&apos;m here to listen and chat whenever you&apos;re
-                        ready. Feel free to start our session when you&apos;re
-                        comfortable.
+                      <p className={`text-sm text-muted-foreground ${GeistSans.className} max-w-xs`}>
+                        I&apos;m here to listen and chat whenever you&apos;re ready. Feel free to start our session when you&apos;re comfortable.
                       </p>
                     </div>
                   )}
                 </div>
 
-                {/* Control panel style button */}
                 <div className="mt-4 flex justify-end">
                   <TooltipProvider>
                     <Tooltip>
@@ -986,11 +983,11 @@ export default function ChatRoomPage() {
             layout
             className={cn(
               "transition-all duration-500 ease-in-out",
-              showDiagnosticReport ? "lg:col-span-2" : "lg:col-span-1"
+              showDiagnosticReport ? "lg:col-span-3" : "lg:col-span-2"
             )}
           >
-            <Card className="bg-card text-card-foreground h-full flex flex-col">
-              <CardHeader className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between h-[72px]">
+            <Card className="bg-card text-card-foreground h-full max-h-[calc(66vh-80px)] flex flex-col">
+              <CardHeader className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between h-[55px]">
                 <CardTitle className="text-2xl font-light text-green-700">
                   {showDiagnosticReport ? "Diagnostic Report" : "Transcription"}
                 </CardTitle>
@@ -1040,7 +1037,7 @@ export default function ChatRoomPage() {
                       <ScrollArea className="flex-grow overflow-y-auto">
                         <div className="space-y-4 pr-4">
                           {accumulatedMessages.length === 0 ? (
-                            <div className="flex items-start space-x-3 p-4 rounded-lg bg-blue-50">
+                            <div className="flex items-start space-x-3 p-4 rounded-lg bg-green-50">
                               <div className="flex-shrink-0">
                                 <Image
                                   src="/aria-avatar.png"
@@ -1051,11 +1048,11 @@ export default function ChatRoomPage() {
                                 />
                               </div>
                               <div className="flex-1">
-                                <p className="text-sm font-semibold text-blue-800">
+                                <p className="text-sm font-semibold text-green-800">
                                   Aria
                                 </p>
                                 <p
-                                  className={`text-sm text-blue-700 leading-relaxed mt-1 ${GeistSans.className}`}
+                                  className={`text-sm text-green-700 leading-relaxed mt-1 ${GeistSans.className}`}
                                 >
                                   Hey there! I&apos;m Aria, your AI health
                                   assistant. I&apos;m here to listen, provide
@@ -1068,7 +1065,7 @@ export default function ChatRoomPage() {
                                   healthcare professional.
                                 </p>
                                 <p
-                                  className={`text-sm text-blue-600 mt-2 italic ${GeistSans.className}`}
+                                  className={`text-sm text-green-600 mt-2 italic ${GeistSans.className}`}
                                 >
                                   How can I assist you with your health today?
                                 </p>
@@ -1080,13 +1077,13 @@ export default function ChatRoomPage() {
                                 key={index}
                                 className={`flex items-start space-x-3 p-3 rounded-lg ${
                                   message.role === "user"
-                                    ? "bg-green-50"
-                                    : "bg-blue-50"
+                                    ? "bg-blue-50"
+                                    : "bg-green-50"
                                 }`}
                               >
                                 <div className="flex-shrink-0 mt-1">
                                   {message.role === "user" ? (
-                                    <MessageSquare className="w-5 h-5 text-green-700" />
+                                    <MessageSquare className="w-5 h-5 text-blue-700" />
                                   ) : (
                                     <Image
                                       src="/aria-avatar.png"
@@ -1101,8 +1098,8 @@ export default function ChatRoomPage() {
                                   <p
                                     className={`text-sm font-semibold ${
                                       message.role === "user"
-                                        ? "text-green-800"
-                                        : "text-blue-800"
+                                        ? "text-blue-800"
+                                        : "text-green-800"
                                     }`}
                                   >
                                     {message.role === "user" ? "You" : "Aria"}
@@ -1112,8 +1109,8 @@ export default function ChatRoomPage() {
                                       GeistSans.className
                                     } text-sm mt-1 ${
                                       message.role === "user"
-                                        ? "text-green-700"
-                                        : "text-blue-700"
+                                        ? "text-blue-700"
+                                        : "text-green-700"
                                     }`}
                                   >
                                     {message.content}
@@ -1123,6 +1120,8 @@ export default function ChatRoomPage() {
                             ))
                           )}
                         </div>
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-b from-white to-transparent"></div>
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-white to-transparent"></div>
                       </ScrollArea>
                     </motion.div>
                   )}

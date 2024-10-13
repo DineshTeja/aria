@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card"
 import SidebarWrapper from "./SidebarWrapper"
 import { type NavItemType } from "./Sidebar"
-import { AudioWaveform, HeartIcon, TextSelect } from "lucide-react"
+import { AudioWaveform, TextSelect } from "lucide-react"
 import { Header } from "./Header"
 import { useState, useEffect, useCallback } from "react"
 
@@ -9,17 +9,17 @@ const navItems: NavItemType[] = [
   {
     icon: <AudioWaveform className="w-6 h-6 text-green-700" />,
     label: "Talk",
-    href: "/",
+    href: "/chatroom",
   },
-  {
-    icon: <HeartIcon className="w-6 h-6 text-green-700" />,
-    label: "Health",
-    href: "/",
-  },
+  // {
+  //   icon: <HeartIcon className="w-6 h-6 text-green-700" />,
+  //   label: "Health",
+  //   href: "/health",
+  // },
   {
     icon: <TextSelect className="w-6 h-6 text-green-700" />,
     label: "Data",
-    href: "/",
+    href: "/data",
   },
 ]
 
@@ -30,7 +30,7 @@ export default function Navbar({
   children: React.ReactNode
   onShuffleNext?: () => void
 }): React.ReactNode | null {
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
   const handleCollapse = useCallback(() => {
@@ -83,9 +83,9 @@ export default function Navbar({
       >
         <Header/>
         {/* h-[calc(100vh-135px)] md:h-[calc(100vh-70px)] xs:h-[70svh] */}
-        <main className="px-4">
+        <main className="px-3">
           <Card className="flex flex-col bg-background shadow p-0 overflow-hidden h-[calc(100vh-135px)] md:h-[calc(100vh-70px)] xs:h-[70svh]">
-            <div className="flex-grow bg-gray-100 sm:px-3 md:px-6 lg:px-14 py-8 overflow-y-auto">
+            <div className="flex-grow bg-gray-100 sm:px-2 md:px-4 lg:px-8 py-8 overflow-y-auto">
               {children}
             </div>
           </Card>

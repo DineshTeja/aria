@@ -23,10 +23,10 @@ export default function AvatarPlayer() {
       {isLoading && (
         <Skeleton isLoading={isLoading} className="absolute inset-0 z-10" />
       )}
-      <div id="video-container" className="w-full h-full">
+      <div id="video-container" className="w-full h-full flex items-center justify-center">
         <video 
           id="video" 
-          className="w-full h-full object-cover" 
+          className="w-full object-cover" 
           autoPlay 
           playsInline 
         />
