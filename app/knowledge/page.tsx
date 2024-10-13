@@ -73,10 +73,10 @@ export default function KnowledgePage() {
       setPage(prevPage => reset ? 2 : prevPage + 1);
     }
 
-    if (reset || currentPage === 1) {
-      const endTime = performance.now();
-    //   setSearchTime(endTime - (searchStartTime || endTime));
-    }
+    // if (reset || currentPage === 1) {
+    // //   const endTime = performance.now();
+    // //   setSearchTime(endTime - (searchStartTime || endTime));
+    // }
 
     setIsLoading(false);
   }, [debouncedQuery, selectedCategories, page, searchStartTime]);

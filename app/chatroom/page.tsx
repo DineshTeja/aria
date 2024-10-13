@@ -178,6 +178,8 @@ export default function ChatRoomPage() {
   const graphRef = useRef<string | null>(graph);
   const doctorsRef = useRef<Doctor[]>(doctors);
 
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     rawMessagesRef.current = rawMessages;
   }, [rawMessages]);
@@ -213,6 +215,12 @@ export default function ChatRoomPage() {
   useEffect(() => {
     doctorsRef.current = doctors;
   }, [doctors]);
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
+  }, [accumulatedMessages]);
 
   const startHark = useCallback(async () => {
     try {
@@ -1161,103 +1169,103 @@ export default function ChatRoomPage() {
                         userVideoRef={userVideoRef}
                       />
 
-                      <ScrollArea className="flex-grow overflow-y-auto">
+                      <ScrollArea className="flex-grow overflow-y-auto" ref={scrollAreaRef}>
                         {(fetchedArticles.length > 0 || graph !== null || doctors.length > 0) && (
-                          <div className="mb-4 flex space-x-2">
-                            {fetchedArticles.length > 0 && (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" className="w-full">
-                                    Aria found {fetchedArticles.length} relevant
-                                    {fetchedArticles.length > 1
-                                      ? " articles"
-                                      : " article"}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-full max-w-md">
-                                  <div className="max-h-60 overflow-y-auto">
-                                    {fetchedArticles.map((article, index) => (
-                                      <div key={index} className="p-2 border-b">
-                                        <div className="flex items-center">
-                                          <div className="flex-grow">
-                                            <p className="font-semibold">
-                                              {article.tag}
-                                            </p>
-                                            <p className="text-sm text-gray-500">
-                                              {article.category}
-                                            </p>
+                          <div className="sticky top-0 z-10 bg-white pb-2 mb-2">
+                            <div className="flex space-x-2">
+                              {fetchedArticles.length > 0 && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full">
+                                      Aria found {fetchedArticles.length} relevant
+                                      {fetchedArticles.length > 1 ? " articles" : " article"}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-full max-w-md">
+                                    <div className="max-h-60 overflow-y-auto">
+                                      {fetchedArticles.map((article, index) => (
+                                        <div key={index} className="p-2 border-b">
+                                          <div className="flex items-center">
+                                            <div className="flex-grow">
+                                              <p className="font-semibold">
+                                                {article.tag}
+                                              </p>
+                                              <p className="text-sm text-gray-500">
+                                                {article.category}
+                                              </p>
+                                            </div>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() =>
+                                                window.open(
+                                                  article.article,
+                                                  "_blank"
+                                                )
+                                              }
+                                            >
+                                              <ExternalLinkIcon className="h-4 w-4" />
+                                            </Button>
                                           </div>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() =>
-                                              window.open(
-                                                article.article,
-                                                "_blank"
-                                              )
-                                            }
-                                          >
-                                            <ExternalLinkIcon className="h-4 w-4" />
-                                          </Button>
                                         </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
+                                      ))}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
 
-                            {doctors.length > 0 && (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" className="w-full">
-                                    Aria found {doctors.length} relevant doctor{doctors.length > 1 ? 's' : ''}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-full max-w-md">
-                                  <div className="max-h-60 overflow-y-auto">
-                                    {doctors.map((doctor, index) => (
-                                      <div key={index} className="p-2 border-b">
-                                        <div className="flex items-center">
-                                          <div className="flex-grow">
-                                            <p className="font-semibold">{doctor.first_name} {doctor.last_name}</p>
-                                            <p className="text-sm text-gray-500">{doctor.speciality}</p>
-                                            <p className="text-sm text-gray-500">{doctor.locality}, {doctor.region}</p>
+                              {doctors.length > 0 && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full">
+                                      Aria found {doctors.length} relevant doctor{doctors.length > 1 ? 's' : ''}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-full max-w-md">
+                                    <div className="max-h-60 overflow-y-auto">
+                                      {doctors.map((doctor, index) => (
+                                        <div key={index} className="p-2 border-b">
+                                          <div className="flex items-center">
+                                            <div className="flex-grow">
+                                              <p className="font-semibold">{doctor.first_name} {doctor.last_name}</p>
+                                              <p className="text-sm text-gray-500">{doctor.speciality}</p>
+                                              <p className="text-sm text-gray-500">{doctor.locality}, {doctor.region}</p>
+                                            </div>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => window.open(doctor.link, '_blank')}
+                                            >
+                                              <User className="h-4 w-4" />
+                                            </Button>
                                           </div>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => window.open(doctor.link, '_blank')}
-                                          >
-                                            <User className="h-4 w-4" />
-                                          </Button>
                                         </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
+                                      ))}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
 
-                            {graph !== null && graph !== "" && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => setIsGraphModalOpen(true)}
-                                >
-                                  <Brain className="h-4 w-4" />
-                                </Button>
-                                <Dialog
-                                  open={isGraphModalOpen}
-                                  onOpenChange={setIsGraphModalOpen}
-                                >
-                                  <DialogContent>
-                                    <Graph graph={graph} />
-                                  </DialogContent>
-                                </Dialog>
-                              </>
-                            )}
+                              {graph !== null && graph !== "" && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setIsGraphModalOpen(true)}
+                                  >
+                                    <Brain className="h-4 w-4" />
+                                  </Button>
+                                  <Dialog
+                                    open={isGraphModalOpen}
+                                    onOpenChange={setIsGraphModalOpen}
+                                  >
+                                    <DialogContent>
+                                      <Graph graph={graph} />
+                                    </DialogContent>
+                                  </Dialog>
+                                </>
+                              )}
+                            </div>
                           </div>
                         )}
 
