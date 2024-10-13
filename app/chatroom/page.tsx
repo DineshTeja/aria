@@ -13,6 +13,8 @@ import {
   Camera,
   CameraOff,
   Folder,
+  ExternalLinkIcon,
+  Brain,
 } from "lucide-react";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAnam } from "../contexts/AnamContext";
@@ -45,12 +47,24 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AnamClient } from "@anam-ai/js-sdk";
 import hark from "hark";
 import KnowledgeManagementModal from "@/components/ui/KnowledgeManagementModal";
+import { Database } from "@/lib/types/schema";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import Graph from "@/components/ui/mermaid";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 enum ConversationState {
   INACTIVE = "INACTIVE",
   LOADING = "LOADING",
   ACTIVE = "ACTIVE",
 }
+
+type KnowledgeBaseItem =
+  Database["public"]["Functions"]["match_documents"]["Returns"][number];
+
 
 // Custom hook to check for messages
 const useWaitForMessages = (messagesRef: React.MutableRefObject<Message[]>) => {
@@ -133,6 +147,10 @@ export default function ChatRoomPage() {
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [isKnowledgeModalOpen, setIsKnowledgeModalOpen] = useState(false);
+  
+  const [fetchedArticles, setFetchedArticles] = useState<KnowledgeBaseItem[]>([]);
+  const [graph, setGraph] = useState<string | null>(null);
+  const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
 
   const { anamClient } = useAnam();
 
@@ -412,6 +430,8 @@ export default function ChatRoomPage() {
   const startConversation = useCallback(async () => {
     setAccumulatedMessages([]);
     setRawMessages([]);
+    setFetchedArticles([]);
+    setGraph(null);
     setConversationState(ConversationState.LOADING);
     setGeneratingReport(false);
     setDiagnosticReport(null);
@@ -583,6 +603,8 @@ export default function ChatRoomPage() {
     setSessionDuration(0);
     setAccumulatedMessages([]);
     setRawMessages([]);
+    setFetchedArticles([]);
+    setGraph(null);
     setGeneratingReport(false);
     setDiagnosticReport(null);
     setMicEnabled(false);
@@ -665,95 +687,85 @@ export default function ChatRoomPage() {
     getAIResponse(pictureAnalysis);
   };
 
-  const getAIResponse = useCallback(
-    async (pictureAnalysis: string | null = null) => {
-      console.log("getAIResponse", isSpeakingRef.current);
-      if (isSpeakingRef.current) {
-        return;
-      }
-      const messagesAvailable = await waitForMessages();
-      if (!messagesAvailable) {
-        console.log("Aborting AI response due to no messages.");
-        return;
+  async function getAIResponse(pictureAnalysis: string | null = null) {
+    console.log("getAIResponse", isSpeakingRef.current);
+    if (isSpeakingRef.current) {
+      return;
+    }
+    const messagesAvailable = await waitForMessages();
+    if (!messagesAvailable) {
+      console.log("Aborting AI response due to no messages.");
+      return;
+    }
+
+    let allLines = rawMessagesRef.current
+      .map((message: Message) => message.content)
+      .join("\n");
+
+    if (pictureAnalysis) {
+      allLines += `\n\nHere is a description of a picture of the condition: ${pictureAnalysis}`;
+    }
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ patientInput: allLines }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      let allLines = rawMessagesRef.current
-        .map((message: Message) => message.content)
-        .join("\n");
+      const data = await response.json();
+      const aiResponse = data.answer;
+      const articles = data.articles;
 
-      if (pictureAnalysis) {
-        allLines += `\n\nHere is a description of a picture of the condition: ${pictureAnalysis}`;
-      }
-
-      try {
-        const response = await fetch("/api/chat", {
+      if (articles.length > 0) {
+        setFetchedArticles(articles);
+        const graphResponse = await fetch("/api/graph", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ patientInput: allLines }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ articles }),
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error("Response body is not readable");
-        }
-
-        let aiResponse = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            break;
-          }
-          const chunk = new TextDecoder().decode(value);
-          aiResponse += chunk;
-        }
-
-        console.log("Complete AI response:", aiResponse);
-
-        // Check if the session is active before calling talk
-        console.log(
-          "conversationState",
-          conversationState,
-          "conversationStateRef",
-          conversationStateRef.current
-        );
-        if (conversationStateRef.current === ConversationState.ACTIVE) {
-          try {
-            console.log("calling talk");
-            await anamClientRef.current.talk(aiResponse);
-          } catch (talkError) {
-            console.error("Error calling anamClient.talk:", talkError);
-            // Attempt to restart the session
-            await startConversation();
-            // Try talking again after restarting
-            await anamClientRef.current.talk(aiResponse);
-          }
-        } else {
-          console.warn("Cannot call talk: Conversation is not active");
-        }
-      } catch (error) {
-        console.error("Error getting AI response:", error);
-        toast({
-          title: "Error",
-          description: "Failed to get AI response",
-          variant: "destructive",
-        });
+        const graphData = await graphResponse.json();
+        setGraph(graphData.graphs);
       }
-    },
-    [
-      waitForMessages,
-      conversationState,
-      anamClientRef,
-      startConversation,
-      toast,
-    ]
-  );
+
+      console.log("Complete AI response:", aiResponse);
+
+      // Check if the session is active before calling talk
+      console.log(
+        "conversationState",
+        conversationState,
+        "conversationStateRef",
+        conversationStateRef.current
+      );
+      if (conversationStateRef.current === ConversationState.ACTIVE) {
+        try {
+          console.log("calling talk");
+          await anamClientRef.current.talk(aiResponse);
+        } catch (talkError) {
+          console.error("Error calling anamClient.talk:", talkError);
+          // Attempt to restart the session
+          await startConversation();
+          // Try talking again after restarting
+          await anamClientRef.current.talk(aiResponse);
+        }
+      } else {
+        console.warn("Cannot call talk: Conversation is not active");
+      }
+    } catch (error) {
+      console.error("Error getting AI response:", error);
+      toast({
+        title: "Error",
+        description: "Failed to get AI response",
+        variant: "destructive",
+      });
+    }
+  }
 
   const onUserStartSpeaking = useCallback(() => {
     setIsSpeaking(() => micIsEnabledRef.current);
@@ -1035,6 +1047,63 @@ export default function ChatRoomPage() {
                       />
 
                       <ScrollArea className="flex-grow overflow-y-auto">
+                        {(fetchedArticles.length > 0 || graph !== null) && (
+                          <div className="mb-4 flex space-x-2">
+                            {fetchedArticles.length > 0 && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="w-full">
+                                    Aria found {fetchedArticles.length} relevant
+                                    {fetchedArticles.length > 1 ? " articles" : " article"}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full max-w-md">
+                                  <div className="max-h-60 overflow-y-auto">
+                                    {fetchedArticles.map((article, index) => (
+                                      <div key={index} className="p-2 border-b">
+                                        <div className="flex items-center">
+                                          <div className="flex-grow">
+                                            <p className="font-semibold">{article.tag}</p>
+                                            <p className="text-sm text-gray-500">
+                                              {article.category}
+                                            </p>
+                                          </div>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() =>
+                                              window.open(article.article, "_blank")
+                                            }
+                                          >
+                                            <ExternalLinkIcon className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+
+                            {graph !== null || graph !== "" && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => setIsGraphModalOpen(true)}
+                                >
+                                  <Brain className="h-4 w-4" />
+                                </Button>
+                                <Dialog open={isGraphModalOpen} onOpenChange={setIsGraphModalOpen}>
+                                  <DialogContent>
+                                    <Graph graph={graph} />
+                                  </DialogContent>
+                                </Dialog>
+                              </>
+                            )}
+                          </div>
+                        )}
+
                         <div className="space-y-4 pr-4">
                           {accumulatedMessages.length === 0 ? (
                             <div className="flex items-start space-x-3 p-4 rounded-lg bg-green-50">
@@ -1120,7 +1189,7 @@ export default function ChatRoomPage() {
                             ))
                           )}
                         </div>
-                        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-b from-white to-transparent"></div>
+                        {!(fetchedArticles.length > 0) && <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-b from-white to-transparent"></div>}
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-white to-transparent"></div>
                       </ScrollArea>
                     </motion.div>
@@ -1152,6 +1221,8 @@ export default function ChatRoomPage() {
                       onClick={() => {
                         setAccumulatedMessages([]);
                         setRawMessages([]);
+                        setFetchedArticles([]);
+                        setGraph(null);
                         if (conversationState === ConversationState.ACTIVE) {
                           stopConversation();
                         } else if (
