@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Database } from "@/lib/types/schema";
 import Navbar from "@/components/nav/Navbar";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -33,43 +33,63 @@ const categories = [
 export default function KnowledgePage() {
   const [knowledgeItems, setKnowledgeItems] = useState<Knowledge[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery] = useDebounce(searchQuery, 300); // Debounce to limit API calls
+  const [debouncedQuery] = useDebounce(searchQuery, 300);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(categories);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  // Add state to store the search time
   const [searchTime, setSearchTime] = useState<number>(0);
+  const [page, setPage] = useState<number>(1);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [hasMore, setHasMore] = useState<boolean>(false);
+  const [searchStartTime, setSearchStartTime] = useState<number | null>(null);
+
+  const fetchKnowledgeItems = useCallback(async (reset: boolean = false) => {
+    if (reset) {
+      setSearchStartTime(performance.now());
+      setIsLoading(true);
+      setKnowledgeItems([]);
+      setTotalCount(0);
+      setPage(1);
+    }
+
+    const currentPage = reset ? 1 : page;
+    const response = await fetch('/api/knowledge/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: debouncedQuery,
+        selectedCategories,
+        page: currentPage,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (result.error) {
+      console.error('Error fetching knowledge data:', result.error);
+    } else {
+      setKnowledgeItems(prevItems => reset ? result.data : [...prevItems, ...result.data]);
+      setTotalCount(result.count);
+      setHasMore(result.data.length === 50);
+      setPage(prevPage => reset ? 2 : prevPage + 1);
+    }
+
+    if (reset || currentPage === 1) {
+      const endTime = performance.now();
+      setSearchTime(endTime - (searchStartTime || endTime));
+    }
+
+    setIsLoading(false);
+  }, [debouncedQuery, selectedCategories, page, searchStartTime]);
 
   useEffect(() => {
-    const fetchKnowledgeItems = async () => {
-      // Start timing the search
-      const startTime = performance.now();
-
-      setIsLoading(true);
-      const response = await fetch('/api/knowledge/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: debouncedQuery,
-          selectedCategories,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.error) {
-        console.error('Error fetching knowledge data:', result.error);
-      } else {
-        setKnowledgeItems(result.data);
-      }
-      setIsLoading(false);
-
-      // End timing and calculate the duration
-      const endTime = performance.now();
-      setSearchTime(endTime - startTime);
-    };
-
-    fetchKnowledgeItems();
+    fetchKnowledgeItems(true);
   }, [debouncedQuery, selectedCategories]);
+
+  const loadMore = () => {
+    if (hasMore && !isLoading) {
+      fetchKnowledgeItems();
+    }
+  };
 
   return (
     <Navbar>
@@ -79,7 +99,7 @@ export default function KnowledgePage() {
             {/* Search Bar */}
             <Input
               type="text"
-              placeholder="Search..."
+              placeholder="Search .."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -114,26 +134,20 @@ export default function KnowledgePage() {
             </div>
           </CardHeader>
           <CardContent className={`px-4 py-0 flex-grow ${GeistSans.className}`}>
-            {/* Update the records display to include search time */}
-            <div className="text-md text-muted-foreground pb-2 px-2 flex items-center justify-between">
-              {isLoading
-                ? 'Loading...'
-                : knowledgeItems && knowledgeItems.length > 0
-                ? `${knowledgeItems.length} records`
-                : 'No results found'}
-              {!isLoading && knowledgeItems && knowledgeItems.length > 0 && (
+            {/* <div className="text-md text-muted-foreground pb-2 px-2 flex items-center justify-between">
+              {!isLoading && knowledgeItems.length > 0 && (
                 <span className="text-sm text-muted-foreground">
                   {searchTime < 1000
                     ? `${searchTime.toFixed(0)} ms`
                     : `${(searchTime / 1000).toFixed(2)} s`}
                 </span>
               )}
-            </div>
-            {isLoading ? (
-              // Render Skeletons while loading
-              <ScrollArea className="h-full">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-2 pb-6">
-                  {[...Array(6)].map((_, index) => (
+            </div> */}
+            <ScrollArea className="h-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-2 pb-6">
+                {isLoading && knowledgeItems.length === 0 ? (
+                  // Render Skeletons while loading
+                  [...Array(6)].map((_, index) => (
                     <Skeleton key={index} className="h-40">
                       <Card className="rounded-lg shadow-md p-4 flex flex-col">
                         <div className="flex justify-between items-start">
@@ -149,14 +163,10 @@ export default function KnowledgePage() {
                         <p className="text-sm bg-neutral-200 rounded h-4 mt-1 w-3/4"></p>
                       </Card>
                     </Skeleton>
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              // Render knowledge items when data is loaded
-              <ScrollArea className="h-full">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-2 pb-6">
-                  {knowledgeItems.map((item) => (
+                  ))
+                ) : (
+                  // Render actual knowledge items
+                  knowledgeItems.map((item) => (
                     <Card
                       key={item.id}
                       className={`rounded-lg shadow-md p-4 flex flex-col ${GeistSans.className}`}
@@ -184,10 +194,17 @@ export default function KnowledgePage() {
                           : item.summary}
                       </p>
                     </Card>
-                  ))}
+                  ))
+                )}
+              </div>
+              {hasMore && !isLoading && (
+                <div className="flex justify-center pb-6">
+                  <Button onClick={loadMore}>
+                    Load More
+                  </Button>
                 </div>
-              </ScrollArea>
-            )}
+              )}
+            </ScrollArea>
           </CardContent>
         </Card>
       </main>

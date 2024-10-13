@@ -296,6 +296,24 @@ export default function ChatRoomPage() {
     setRawMessages((prevRawMessages) => [...prevRawMessages, messageEvent]);
 
     // Update accumulatedMessages (existing logic)
+    // setAccumulatedMessages((prevMessages) => {
+    //   const newMessages = [...prevMessages];
+    //   if (messageEvent.role === "persona" && newMessages.length > 0) {
+    //     const lastMessage = newMessages[newMessages.length - 1];
+    //     if (
+    //       lastMessage.role === "persona" &&
+    //       lastMessage.id === messageEvent.id
+    //     ) {
+    //       if (!lastMessage.content.endsWith(messageEvent.content)) {
+    //         lastMessage.content += messageEvent.content;
+    //       }
+    //       return newMessages;
+    //     }
+    //   }
+    //   // Add as a new message if it doesn't match the previous one
+    //   return [...newMessages, messageEvent];
+    // });
+
     setAccumulatedMessages((prevMessages) => {
       const newMessages = [...prevMessages];
       if (messageEvent.role === "persona" && newMessages.length > 0) {
@@ -304,6 +322,7 @@ export default function ChatRoomPage() {
           lastMessage.role === "persona" &&
           lastMessage.id === messageEvent.id
         ) {
+          // Check if the new content is not already at the end of the last message
           if (!lastMessage.content.endsWith(messageEvent.content)) {
             lastMessage.content += messageEvent.content;
           }
@@ -1203,6 +1222,7 @@ export default function ChatRoomPage() {
                                           <div className="flex-grow">
                                             <p className="font-semibold">{doctor.first_name} {doctor.last_name}</p>
                                             <p className="text-sm text-gray-500">{doctor.speciality}</p>
+                                            <p className="text-sm text-gray-500">{doctor.locality}, {doctor.region}</p>
                                           </div>
                                           <Button
                                             variant="ghost"
