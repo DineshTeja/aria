@@ -66,6 +66,51 @@ export type Database = {
         }
         Relationships: []
       }
+      new_doctors: {
+        Row: {
+          credentials: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          link: string
+          locality: string | null
+          locality_url: string | null
+          photo_url: string | null
+          region: string | null
+          region_url: string | null
+          speciality: string | null
+          speciality_link: string | null
+        }
+        Insert: {
+          credentials?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          link: string
+          locality?: string | null
+          locality_url?: string | null
+          photo_url?: string | null
+          region?: string | null
+          region_url?: string | null
+          speciality?: string | null
+          speciality_link?: string | null
+        }
+        Update: {
+          credentials?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          link?: string
+          locality?: string | null
+          locality_url?: string | null
+          photo_url?: string | null
+          region?: string | null
+          region_url?: string | null
+          speciality?: string | null
+          speciality_link?: string | null
+        }
+        Relationships: []
+      }
       pdf_knowledge: {
         Row: {
           content: string | null
@@ -213,17 +258,3 @@ export type Enums<
   : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
     ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
-
-// Export categories array
-export const categories = [
-  "cardiovascular",
-  "respiratory",
-  "gastrointestinal",
-  "neurological",
-  "endocrine",
-  "hematological",
-  "infectious",
-  "musculoskeletal",
-  "autoimmune",
-  "cancer",
-];

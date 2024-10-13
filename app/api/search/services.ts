@@ -58,3 +58,24 @@ export const searchKnowledgeBaseCategories = async (query: string, selectedCateg
     return { data: null, error };
   }
 };
+
+export const searchPhysicians = async (query: string) => {
+  try {
+    // Perform a fuzzy search on physician names
+    const { data, error } = await supabase
+      .from('new_doctors')
+      .select('*')
+      .or(
+        `first_name.ilike.%${query}%,last_name.ilike.%${query}%`
+      )
+      .limit(50);
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};

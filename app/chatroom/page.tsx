@@ -1085,7 +1085,7 @@ export default function ChatRoomPage() {
                               </Popover>
                             )}
 
-                            {graph !== null || graph !== "" && (
+                            {graph !== null && graph !== "" && (
                               <>
                                 <Button
                                   variant="outline"

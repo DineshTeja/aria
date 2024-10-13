@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card"
 import SidebarWrapper from "./SidebarWrapper"
 import { type NavItemType } from "./Sidebar"
-import { AudioWaveform, TextSelect } from "lucide-react"
+import { AudioWaveform, TextSelect, HeartIcon } from "lucide-react"
 import { Header } from "./Header"
 import { useState, useEffect, useCallback } from "react"
 
@@ -11,15 +11,15 @@ const navItems: NavItemType[] = [
     label: "Talk",
     href: "/chatroom",
   },
-  // {
-  //   icon: <HeartIcon className="w-6 h-6 text-green-700" />,
-  //   label: "Health",
-  //   href: "/health",
-  // },
+  {
+    icon: <HeartIcon className="w-6 h-6 text-green-700" />,
+    label: "Physicians",
+    href: "/physicians",
+  },
   {
     icon: <TextSelect className="w-6 h-6 text-green-700" />,
-    label: "Data",
-    href: "/data",
+    label: "Knowledge",
+    href: "/knowledge",
   },
 ]
 
