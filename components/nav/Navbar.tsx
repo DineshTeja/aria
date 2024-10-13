@@ -84,8 +84,8 @@ export default function Navbar({
         <Header/>
         {/* h-[calc(100vh-135px)] md:h-[calc(100vh-70px)] xs:h-[70svh] */}
         <main className="px-4">
-          <Card className="flex flex-col bg-background shadow p-0 overflow-hidden">
-            <div className="flex-grow bg-gray-100 lg:px-14 py-8 overflow-y-auto">
+          <Card className="flex flex-col bg-background shadow p-0 overflow-hidden h-[calc(100vh-135px)] md:h-[calc(100vh-70px)] xs:h-[70svh]">
+            <div className="flex-grow bg-gray-100 sm:px-3 md:px-6 lg:px-14 py-8 overflow-y-auto">
               {children}
             </div>
           </Card>

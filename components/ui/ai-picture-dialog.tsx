@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent } from "./dialog";
 import { Button } from "./button";
-
+import { GeistSans } from "geist/font/sans";
 export default function AiPictureDialog({
   open,
   setOpen,
@@ -138,7 +138,7 @@ export default function AiPictureDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent onClick={(e) => e.stopPropagation()}>
+      <DialogContent onClick={(e) => e.stopPropagation()} className={GeistSans.className}>
         <h2 className="text-lg font-semibold">Requesting picture</h2>
         <p className="text-sm text-gray-500">
           {page === 0 ? (

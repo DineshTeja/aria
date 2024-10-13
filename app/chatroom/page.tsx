@@ -12,6 +12,7 @@ import {
   SquareActivity,
   Camera,
   CameraOff,
+  Folder,
 } from "lucide-react";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAnam } from "../contexts/AnamContext";
@@ -35,12 +36,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import AiPictureDialog from "@/components/ui/ai-picture-dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+// import { Skeleton } from "@/components/ui/skeleton";
 import Markdown from "react-markdown";
 import { debounce } from "lodash";
 import { motion, AnimatePresence } from "framer-motion";
 import { GeistSans } from 'geist/font/sans';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import KnowledgeManagementModal from "@/components/ui/KnowledgeManagementModal";
 
 enum ConversationState {
   INACTIVE = "INACTIVE",
@@ -75,6 +77,38 @@ const useWaitForMessages = (messages: Message[]) => {
   return { hasMessages, waitForMessages };
 };
 
+// Extract UserVideoFeed component outside of ChatRoomPage
+function UserVideoFeed({
+  cameraEnabled,
+  userVideoRef,
+}: {
+  cameraEnabled: boolean;
+  userVideoRef: React.RefObject<HTMLVideoElement>;
+}) {
+  return (
+    <div className="mb-4 h-48 relative">
+      {cameraEnabled ? (
+        <video
+          ref={userVideoRef}
+          autoPlay
+          muted
+          playsInline
+          className="w-full h-full object-cover rounded-lg"
+        />
+      ) : (
+        <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
+          <Avatar>
+            <AvatarFallback>DV</AvatarFallback>
+          </Avatar>
+        </div>
+      )}
+      <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-sm">
+        You
+      </div>
+    </div>
+  );
+}
+
 export default function ChatRoomPage() {
   const [conversationState, setConversationState] = useState<ConversationState>(
     ConversationState.INACTIVE
@@ -93,6 +127,8 @@ export default function ChatRoomPage() {
   >(null);
   const [showDiagnosticReport, setShowDiagnosticReport] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const [isKnowledgeModalOpen, setIsKnowledgeModalOpen] = useState(false);
 
   const { anamClient } = useAnam();
 
@@ -469,14 +505,15 @@ export default function ChatRoomPage() {
     setShowDiagnosticReport(false);
     setSessionStarted(false);
 
-    // Stop the camera
+    // **Remove the code that stops the camera here**
+    // **The camera should remain active unless cameraEnabled is set to false**
+    /*
     if (userVideoRef.current && userVideoRef.current.srcObject) {
-      const tracks = (
-        userVideoRef.current.srcObject as MediaStream
-      ).getTracks();
+      const tracks = (userVideoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach((track) => track.stop());
       userVideoRef.current.srcObject = null;
     }
+    */
   };
 
   const getAIClassification = async () => {
@@ -668,15 +705,18 @@ export default function ChatRoomPage() {
       navigator.mediaDevices
         .getUserMedia({ video: true })
         .then((stream) => {
+          setMediaStream(stream); // Store the stream in state
           if (userVideoRef.current) {
             userVideoRef.current.srcObject = stream;
           }
         })
         .catch((err) => console.error("Error accessing camera:", err));
     } else {
-      if (userVideoRef.current && userVideoRef.current.srcObject) {
-        const tracks = (userVideoRef.current.srcObject as MediaStream).getTracks();
-        tracks.forEach((track) => track.stop());
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop()); // Stop all tracks
+        setMediaStream(null); // Clear the stream from state
+      }
+      if (userVideoRef.current) {
         userVideoRef.current.srcObject = null;
       }
     }
@@ -688,29 +728,6 @@ export default function ChatRoomPage() {
     if (hour < 18) return "afternoon";
     return "evening";
   };
-
-  const UserVideoFeed = () => (
-    <div className="mb-4 h-48 relative">
-      {cameraEnabled ? (
-        <video
-          ref={userVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className="w-full h-full object-cover rounded-lg"
-        />
-      ) : (
-        <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
-          <Avatar>
-            <AvatarFallback>DV</AvatarFallback>
-          </Avatar>
-        </div>
-      )}
-      <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded-md text-sm">
-        You
-      </div>
-    </div>
-  );
 
   return (
     <Navbar>
@@ -743,7 +760,7 @@ export default function ChatRoomPage() {
               showDiagnosticReport ? "lg:col-span-1" : "lg:col-span-2"
             )}
           >
-            <Card className="text-card-foreground h-full">
+            <Card className="text-card-foreground h-full flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 h-[72px]">
                 <CardTitle className="text-2xl font-light text-green-700">
                   Talk to Aria
@@ -772,30 +789,54 @@ export default function ChatRoomPage() {
                 </div>
               </CardHeader>
               <Separator className="my-2" />
-              <CardContent className="p-4 h-[calc(60vh-80px)] flex items-center justify-center">
-                {conversationState !== ConversationState.INACTIVE ? (
-                  <AvatarPlayer />
-                ) : (
-                  <div className="text-center">
-                    <div className="w-48 h-48 mx-auto mb-6">
-                      <Image
-                        src="/aria-avatar.png"
-                        alt="Aria"
-                        width={192}
-                        height={192}
-                        className="rounded-full border-4 border-green-100"
-                      />
+              <CardContent className="p-4 flex-grow flex flex-col">
+                <div className="flex-grow h-[calc(60vh-80px)] flex items-center justify-center">
+                  {conversationState !== ConversationState.INACTIVE ? (
+                    <AvatarPlayer />
+                  ) : (
+                    <div className="text-center">
+                      <div className="w-48 h-48 mx-auto mb-6">
+                        <Image
+                          src="/aria-avatar.png"
+                          alt="Aria"
+                          width={192}
+                          height={192}
+                          className="rounded-full border-4 border-green-100"
+                        />
+                      </div>
+                      <h3 className="text-2xl font-semibold text-green-700 mb-3">
+                        Hi, I&apos;m Aria
+                      </h3>
+                      <p className={`text-sm text-muted-foreground ${GeistSans.className}`}>
+                        I&apos;m here to listen and chat whenever you&apos;re
+                        ready. Feel free to start our session when you&apos;re
+                        comfortable.
+                      </p>
                     </div>
-                    <h3 className="text-2xl font-semibold text-green-700 mb-3">
-                      Hi, I&apos;m Aria
-                    </h3>
-                    <p className={`text-sm text-muted-foreground ${GeistSans.className}`}>
-                      I&apos;m here to listen and chat whenever you&apos;re
-                      ready. Feel free to start our session when you&apos;re
-                      comfortable.
-                    </p>
-                  </div>
-                )}
+                  )}
+                </div>
+                
+                {/* Control panel style button */}
+                <div className="mt-4 flex justify-end">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-green-700 hover:bg-green-50"
+                          onClick={() => setIsKnowledgeModalOpen(true)}
+                        >
+                          <Folder className="h-4 w-4 mr-2" />
+                          Manage Knowledge
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Manage Aria&apos;s knowledge for this conversation
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -849,10 +890,11 @@ export default function ChatRoomPage() {
                       exit={{ opacity: 0 }}
                       className="flex flex-col flex-grow overflow-hidden"
                     >
-                      <UserVideoFeed />
-                      {conversationState === ConversationState.LOADING ? (
-                        <Skeleton isLoading={true} className="mb-4 h-48 w-full" />
-                      ) : null}
+                      <UserVideoFeed
+                        cameraEnabled={cameraEnabled}
+                        userVideoRef={userVideoRef}
+                      />
+
                       <ScrollArea className="flex-grow overflow-y-auto">
                         <div className="space-y-4 pr-4">
                           {accumulatedMessages.length === 0 ? (
@@ -1028,8 +1070,8 @@ export default function ChatRoomPage() {
                   </TooltipTrigger>
                   <TooltipContent>
                     {micIsEnabled
-                      ? "Unmute your microphone"
-                      : "Mute your microphone"}
+                      ? "Mute your microphone"
+                      : "Unmute your microphone"}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -1111,6 +1153,10 @@ export default function ChatRoomPage() {
           open={aiPictureDialogOpen}
           setOpen={setAiPictureDialogOpen}
           pictureDescriptionCallback={handlePictureAnalysis}
+        />
+        <KnowledgeManagementModal
+          isOpen={isKnowledgeModalOpen}
+          onClose={() => setIsKnowledgeModalOpen(false)}
         />
       </main>
     </Navbar>
