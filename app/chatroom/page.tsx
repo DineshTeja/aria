@@ -102,7 +102,7 @@ function UserVideoFeed({
       ) : (
         <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
           <Avatar>
-            <AvatarFallback>DV</AvatarFallback>
+            <AvatarFallback>JS</AvatarFallback>
           </Avatar>
         </div>
       )}
@@ -868,7 +868,7 @@ export default function ChatRoomPage() {
           <div className="flex items-center">
             <div className="flex-grow">
               <h2 className="text-2xl font-semibold text-green-800">
-                👋 Good {getGreeting()}, Dinesh
+                👋 Good {getGreeting()}, John
               </h2>
               <p
                 className={`mt-2 text-sm text-green-700 ${GeistSans.className}`}

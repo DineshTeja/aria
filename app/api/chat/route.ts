@@ -123,6 +123,7 @@ async function aiDoctorPipeline(
   console.log(`Medical Llama info: ${medicalInfo}`);
 
   const messages: GroqMessageParam[] = [
+    { role: "system", content: "You are Aria, an AI health assistant." },
     { role: "user", content: systemPrompt },
     {
       role: "user",
