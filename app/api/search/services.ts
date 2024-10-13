@@ -13,7 +13,7 @@ export const searchKnowledgeBase = async (query: string) => {
 
   const embedding = response.data[0].embedding;
   return await supabase.rpc("match_documents", {
-    query_embedding: embedding,
+    query_embedding: JSON.stringify(embedding),
     match_threshold: 0.5,
     match_count: 5,
   });
@@ -31,7 +31,7 @@ export const searchKnowledgeBaseCategories = async (query: string, selectedCateg
       const embedding = response.data[0].embedding;
 
       const result = await supabase.rpc("match_documents", {
-        query_embedding: embedding,
+        query_embedding: JSON.stringify(embedding),
         match_threshold: 0.25,
         match_count: 50,
       });
