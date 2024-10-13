@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Groq } from "groq-sdk";
 import { searchKnowledgeBase } from "../search/services";
+import { Database } from "@/lib/types/schema";
+
+type KnowledgeBaseItem =
+  Database["public"]["Functions"]["match_documents"]["Returns"][number];
 
 type GroqMessageParam = {
   role: "system" | "user" | "assistant";
@@ -35,10 +39,7 @@ async function searchMedicalKnowledgeBase(query: string): Promise<string> {
     if (error) {
       throw error;
     }
-    // TODO: Figure out proper string format for this
-    return data
-      .map((item: object) => JSON.stringify({ ...item, similarity: undefined }))
-      .join("\n");
+    return data.map((item: KnowledgeBaseItem) => item.summary).join("\n");
   } catch (error) {
     console.error("Error searching knowledge base:", error);
     return "";
@@ -51,6 +52,8 @@ async function* chatWithModelStream(
   const stream = await client.chat.completions.create({
     messages,
     model: "llama3-70b-8192",
+    // model: "llama-3.1-8b-instant",
+    // model: "llama-3.2-11b-text-preview",
     // model: "mixtral-8x7b-32768",
     temperature: 0.7,
     max_tokens: 1000,
@@ -96,23 +99,21 @@ async function aiDoctorPipeline(
   const systemPrompt = `
     You are a medical AI assistant. Your primary focus:
 
-    1. Provide immediate, actionable advice for patient's symptoms.
-    2. If diagnosis is clear:
-    - Start with concise treatment recommendations.
-    - Briefly explain diagnosis if necessary.
-    - End with [DIAGNOSIS_PROVIDED]
-    3. If more information needed:
-    - Offer safe, general advice based on symptoms.
-    - Ask 1-2 critical questions for clarification.
-    - End with [MORE_INFO_NEEDED]
+    1. Address chief complaint: Prioritize the patient's main concern.
+    2. Assess urgency: Determine if immediate medical attention is required.
+    3. Provide actionable advice: Offer specific, evidence-based recommendations.
+    4. Clarify if needed: Ask 1-2 targeted questions if critical information is missing.
+    5. Discuss potential diagnoses: Only if appropriate and within your knowledge scope.
 
-    Rules:
-    - Prioritize practical guidance over medical explanations.
-    - Be direct and concise. No unnecessary words.
-    - Don't use [DIAGNOSIS_PROVIDED] if asking any questions.
-    - Incorporate additional medical model information when relevant.
+    Guidelines:
+    - Safety first: Err on the side of caution for serious symptoms.
+    - Be concise: Use clear, simple language. 2-3 sentences maximum.
+    - Stay focused: Address the immediate issue, avoid tangents.
+    - Integrate data: Incorporate relevant information from additional medical sources.
+    - Avoid speculation: If unsure, recommend professional evaluation.
+    - No Markdown formatting: Provide plain text responses only.
 
-    Remember: Focus on what the patient can do right now to feel better or get proper care.`;
+    Key objective: Deliver the most crucial, actionable information to improve the patient's immediate situation or guide them to appropriate care.`;
   const medicalQuery = `Provide medical analysis for these symptoms: ${patientInput}`;
   const medicalInfo = await medicalLlamaQuery(medicalQuery);
   const knowledgeBaseInfo = await searchMedicalKnowledgeBase(medicalQuery);
@@ -122,7 +123,7 @@ async function aiDoctorPipeline(
   console.log(`Medical Llama info: ${medicalInfo}`);
 
   const messages: GroqMessageParam[] = [
-    { role: "system", content: systemPrompt },
+    { role: "user", content: systemPrompt },
     {
       role: "user",
       content: `Patient input: ${patientInput}\n\nAdditional information from specialized medical model: ${medicalInfo}\n\nAdditional information from knowledge base: ${knowledgeBaseInfo}`,
