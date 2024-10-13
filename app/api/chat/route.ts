@@ -104,7 +104,7 @@ async function aiDoctorPipeline(
       role: "user",
       content: `Patient input: ${patientInput}\n\nPatient info: ${JSON.stringify(
         person
-      )}\n\nAdditional information from specialized medical model: ${medicalInfo}\n\nAdditional information from knowledge base: ${knowledgeBaseInfo}`,
+      )}\n\nThese are relevant articles/papers/citations from your knowledge base, you may use them to support your answer as needed or requested: ${knowledgeBaseInfo}\n\nAdditional information from specialized medical model: ${medicalInfo}\n`,
     },
   ];
 
