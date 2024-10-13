@@ -47,6 +47,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AnamClient } from "@anam-ai/js-sdk";
 import hark from "hark";
 import KnowledgeManagementModal from "@/components/ui/KnowledgeManagementModal";
+
+type Doctor = Database["public"]["Tables"]["new_doctors"]["Row"];
 import { Database } from "@/lib/types/schema";
 import {
   Popover,
@@ -64,7 +66,6 @@ enum ConversationState {
 
 type KnowledgeBaseItem =
   Database["public"]["Functions"]["match_documents"]["Returns"][number];
-
 
 // Custom hook to check for messages
 const useWaitForMessages = (messagesRef: React.MutableRefObject<Message[]>) => {
@@ -147,16 +148,19 @@ export default function ChatRoomPage() {
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [isKnowledgeModalOpen, setIsKnowledgeModalOpen] = useState(false);
-  
-  const [fetchedArticles, setFetchedArticles] = useState<KnowledgeBaseItem[]>([]);
+
+  const [fetchedArticles, setFetchedArticles] = useState<KnowledgeBaseItem[]>(
+    []
+  );
   const [graph, setGraph] = useState<string | null>(null);
   const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
 
-  const { anamClient } = useAnam();
+  const { anamClient, reset: resetAnamClient } = useAnam();
 
   const [stopHark, setStopHark] = useState<(() => void) | undefined>();
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [didInterruptSpeaking, setDidInterruptSpeaking] = useState(false);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
 
   // Set of references to keep track of states that Hark closures rely on
   const rawMessagesRef = useRef<Message[]>(rawMessages);
@@ -169,6 +173,7 @@ export default function ChatRoomPage() {
   const isSpeakingRef = useRef<boolean>(isSpeaking);
   const didInterruptSpeakingRef = useRef<boolean>(didInterruptSpeaking);
   const micIsEnabledRef = useRef<boolean>(micIsEnabled);
+  const doctorsRef = useRef<Doctor[]>(doctors);
 
   useEffect(() => {
     rawMessagesRef.current = rawMessages;
@@ -193,6 +198,10 @@ export default function ChatRoomPage() {
   useEffect(() => {
     micIsEnabledRef.current = micIsEnabled;
   }, [micIsEnabled]);
+
+  useEffect(() => {
+    doctorsRef.current = doctors;
+  }, [doctors]);
 
   const startHark = useCallback(async () => {
     try {
@@ -266,7 +275,7 @@ export default function ChatRoomPage() {
   };
 
   const onMessageReceived = (messageEvent: MessageStreamEvent) => {
-    console.log("Message received", messageEvent);
+    // console.log("Message received", messageEvent);
 
     if (messageEvent.interrupted) {
       setDidInterruptSpeaking(true);
@@ -617,6 +626,8 @@ export default function ChatRoomPage() {
     setShowDiagnosticReport(false);
     setSessionStarted(false);
 
+    resetAnamClient();
+
     // **Remove the code that stops the camera here**
     // **The camera should remain active unless cameraEnabled is set to false**
     /*
@@ -651,20 +662,45 @@ export default function ChatRoomPage() {
       .join("\n");
 
     try {
-      const response = await fetch("/api/classify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          patientInput: allLines,
-          previousPictureAnalysis: previousPictureAnalysisRef.current,
+      const responses = [
+        fetch("/api/classify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            patientInput: allLines,
+            previousPictureAnalysis: previousPictureAnalysisRef.current,
+          }),
         }),
-      });
+        fetch("/api/location/classify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ patientInput: allLines }),
+        }),
+      ];
 
-      const { needsPicture } = await response.json();
+      const [classificationResponse, locationResponse] = await Promise.all(
+        responses
+      );
 
-      if (needsPicture) {
+      const [classificationData, locationData] = await Promise.all([
+        classificationResponse.json(),
+        locationResponse.json(),
+      ]);
+
+      const { needsPicture } = classificationData;
+      const { requestingProfessionals } = locationData;
+
+      console.log("needsPicture", needsPicture);
+      console.log("requestingProfessionals", requestingProfessionals);
+      console.log("# doctors found", doctorsRef.current.length);
+
+      if (requestingProfessionals && doctorsRef.current.length === 0) {
+        getDoctors();
+      } else if (previousPictureAnalysisRef.current === null && needsPicture) {
         setMicEnabled(false);
         anamClientRef.current.muteInputAudio();
         anamClientRef.current.talk(
@@ -686,6 +722,51 @@ export default function ChatRoomPage() {
     console.log(pictureAnalysis);
     getAIResponse(pictureAnalysis);
   };
+
+  const getDoctors = useCallback(async () => {
+    if (isSpeakingRef.current) {
+      return;
+    }
+    const messagesAvailable = await waitForMessages();
+    if (!messagesAvailable) {
+      console.log("Aborting AI response due to no messages.");
+      return;
+    }
+
+    const allLines = rawMessagesRef.current
+      .map((message: Message) => message.content)
+      .join("\n");
+
+    const response = await fetch("/api/location", {
+      method: "POST",
+      body: JSON.stringify({
+        patientInput: allLines,
+        patientInfo: {
+          firstName: "John",
+          lastName: "Smith",
+          dateOfBirth: "1999-04-01",
+          gender: "Male",
+          locality: "Boston",
+          region: "MA",
+        },
+        doctors: doctorsRef.current,
+      }),
+    });
+
+    const { response: responseText, doctors } = await response.json();
+
+    setDoctors(doctors);
+
+    if (conversationStateRef.current === ConversationState.ACTIVE) {
+      try {
+        await anamClientRef.current.talk(responseText);
+      } catch (error) {
+        console.error("Error talking to Anam:", error);
+      }
+    } else {
+      console.warn("Cannot call talk: Conversation is not active");
+    }
+  }, [waitForMessages]);
 
   async function getAIResponse(pictureAnalysis: string | null = null) {
     console.log("getAIResponse", isSpeakingRef.current);
@@ -959,8 +1040,12 @@ export default function ChatRoomPage() {
                       <h3 className="text-2xl font-semibold text-green-700 mb-4">
                         Hi, I&apos;m Aria
                       </h3>
-                      <p className={`text-sm text-muted-foreground ${GeistSans.className} max-w-xs`}>
-                        I&apos;m here to listen and chat whenever you&apos;re ready. Feel free to start our session when you&apos;re comfortable.
+                      <p
+                        className={`text-sm text-muted-foreground ${GeistSans.className} max-w-xs`}
+                      >
+                        I&apos;m here to listen and chat whenever you&apos;re
+                        ready. Feel free to start our session when you&apos;re
+                        comfortable.
                       </p>
                     </div>
                   )}
@@ -1054,7 +1139,9 @@ export default function ChatRoomPage() {
                                 <PopoverTrigger asChild>
                                   <Button variant="outline" className="w-full">
                                     Aria found {fetchedArticles.length} relevant
-                                    {fetchedArticles.length > 1 ? " articles" : " article"}
+                                    {fetchedArticles.length > 1
+                                      ? " articles"
+                                      : " article"}
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-full max-w-md">
@@ -1063,7 +1150,9 @@ export default function ChatRoomPage() {
                                       <div key={index} className="p-2 border-b">
                                         <div className="flex items-center">
                                           <div className="flex-grow">
-                                            <p className="font-semibold">{article.tag}</p>
+                                            <p className="font-semibold">
+                                              {article.tag}
+                                            </p>
                                             <p className="text-sm text-gray-500">
                                               {article.category}
                                             </p>
@@ -1072,7 +1161,10 @@ export default function ChatRoomPage() {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() =>
-                                              window.open(article.article, "_blank")
+                                              window.open(
+                                                article.article,
+                                                "_blank"
+                                              )
                                             }
                                           >
                                             <ExternalLinkIcon className="h-4 w-4" />
@@ -1094,7 +1186,10 @@ export default function ChatRoomPage() {
                                 >
                                   <Brain className="h-4 w-4" />
                                 </Button>
-                                <Dialog open={isGraphModalOpen} onOpenChange={setIsGraphModalOpen}>
+                                <Dialog
+                                  open={isGraphModalOpen}
+                                  onOpenChange={setIsGraphModalOpen}
+                                >
                                   <DialogContent>
                                     <Graph graph={graph} />
                                   </DialogContent>
@@ -1189,7 +1284,9 @@ export default function ChatRoomPage() {
                             ))
                           )}
                         </div>
-                        {!(fetchedArticles.length > 0) && <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-b from-white to-transparent"></div>}
+                        {!(fetchedArticles.length > 0) && (
+                          <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-b from-white to-transparent"></div>
+                        )}
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-white to-transparent"></div>
                       </ScrollArea>
                     </motion.div>
