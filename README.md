@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Made with ❤️ by Lavik Jain, Dinesh Vasireddy, Pranav Ramesh, and Nikita Mounier
 
-## Getting Started
+https://ariamed.vercel.app/chatroom
+https://youtu.be/lL6MhEyyubA
 
-First, run the development server:
+## Inspiration 💡
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+In many parts of the world, access to high-quality medical care is delayed, limited, or prohibitively expensive, often leading to worse outcomes for patients. This disparity is even more pronounced in rural or underserved regions, where specialist care is scarce or non-existent. As we face the reality of aging populations and a rising demand for healthcare, the need for quick, reliable, and accessible medical expertise has never been more pressing.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Even in well-developed healthcare systems, patients often experience long wait times for appointments with specialists, which can be frustrating and sometimes dangerous. Bureaucracy, administrative delays, and the complexities of navigating healthcare systems can make it difficult for people to get timely diagnoses and treatments. This is compounded by the heavy paperwork and insurance hurdles that make even routine care a drawn-out process.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Aria is meant to deconstruct these barriers. By creating a highly automated, real-time conversational medical expert, we’re providing people with fast, specialized care wherever they are. Whether it’s through an accurate diagnosis, immediate referral to a nearby physician, or a detailed health report, Aria is always at service of her patients. In a world where every minute counts, Aria delivers high-quality healthcare faster, cutting through the red tape and providing critical insights when they’re needed most. Most of all, she is very easy to use, with minimum technological barrier to entry, and suitable for patients of all ages, educational levels, and backgrounds. The potential for this technology to save lives, reduce healthcare inequities, and alleviate the burdens on strained healthcare systems is immense. It’s not just about convenience; it’s about transforming healthcare accessibility for millions. Thus, Aria's name is inspired by ARIA (Accessible Rich Internet Applications), underscoring our foundation in and commitment to healthcare accessibility.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## What it does 🏥
 
-## Learn More
+Aria is the world's first fully-automated medical expert that can make reliable diagnoses from natural conversation. Patients can describe symptoms, ask questions, provide their medical history, and even show video evidence of symptoms on the body in real time to reliably receive diagnoses and medical advice.
 
-To learn more about Next.js, take a look at the following resources:
+Key Features:
+* **Expert Knowledge Base:** Aria's knowledge base is sourced from highly credible sources such as Medline, PubMed, and more. Every diagnosis and recommendation is backed by direct evidence from this knowledge base, and the patient can read directly into the article Aria cites to make a diagnosis. 
+* **Multimodal Capabilities:** Aria allows for patients to take pictures of their physical condition in real-time, making it simple to show Aria what the patient is really experiencing.
+* **Personal Health Record Integration:** Patients can upload their personal health records, which Aria processes to offer a more comprehensive, individualized diagnosis.
+* **In-Depth Reports:** After analysis, Aria generates a detailed diagnosis report, including recommendations for treatment and follow-up steps.
+* **Physician Referrals:** Based on the diagnosis, Aria refers patients to local physicians who specialize in the relevant medical area, ensuring they receive appropriate care.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How we built it 🔧
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Aria is a culmination of various moving parts, seamlessly integrated into one solution.
+* We used Firecrawl and Beautiful Soup to read open source articles on detailed topics in medicine such as from Medline and PubMed to build a massive expert knowledge base, and to find all the physicians in the United States, their locations, and medical specialities
+* We use the OpenAI text-embedding-3-small to embed all entries in the knowledge base for future retrieval
+* We transcribe live user voice input (with the Anam API and Hark) and determine with Mixtral (inference with Groq) whether an image is needed to provide relevant advice to the patients' issue
+* If an image is needed, we process it with Llava (a vision extension to Llama), generate detailed descriptions of all objects in the image, and then process all patient conversations with Llama
+* We embed the user's concerns with OpenAI text-embedding-3-small and the most relevant entries from the knowledge base are retrieved using vector similarity from the OpenAI API
+* Similarly, we look at the user’s profile (location, name, etc.) and health needs to fetch relevant physicians (from a database of 100K +) that are geographically near them and specialize in a field that would be helpful for them as a patient
+* We generate Aria's response with Llama (powered by Groq inference) and visualize her face using Anam API
+* All of this is packaged in a beautiful and modern UI built using NextJS and Tailwind
 
-## Deploy on Vercel
+## Challenges we ran into 🧗
+Real-time communication with Aria was a challenge due to interruptions and the complexity of making the AI persona follow conversations smoothly while maintaining speed. We found that Anam’s beta API didn’t allow for interruption or natural-flowing conversation when using a custom intelligence pipeline, so we had to build a lot of the intermediate infra using a separate audio stream detection package called Hark, which we used to build our own interruption/free flow conversation capabilities for Aria. 
+We also struggled with building a fast and accurate decision-making pipeline, given the numerous inputs like medical knowledge, images, and user interactions. We worked very hard to make Aria very fast while also handling the heavy processing required to deliver reliable medical advice in real time. We also worked on building robust knowledge graphs for Aria to traverse in her Q/A actions, as we wanted more deterministic outcomes in diagnoses and decision making, but we struggled to incorporate them efficiently into our low latency workflow. However, that’s definitely something we want to do in the future. 
+## Accomplishments that we're proud of 💪
+**State of the Art:** No large language model today is able to provide consistently reliable medical advice. Aria, however, beats multiple benchmarks that demonstrate performance exceeds those of large language models such as GPT-4o. This can be accredited to the massive knowledge base (many thousands of documents) of high-quality medical data (Medline, PubMed, etc papers) that Aria sits on top of. In particular, we comparing the recommendations provided by ChatGPT and similar tools with Aria's recommendations, Aria was able to detect nuances among the symptoms and give specific (and accurate) diagnoses, while other tools give broader recommendations. 
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Speed:** Aria is the world's first real-time visual persona for medical purposes. Real-time personas are at the cutting-edge of present work, and not many people have been able to nail them down. For our particular application, not only are we able to build a persona that operates in real-time, but we are able to do so despite the maby operations and processes that occur in the "brain" of the persona. Medical decision making is a heavy process, and especially with so many sources of input to this decision-making process (knowledge base of thousands of documents of expert knowledge, image input, symptom descriptions, personal health records) latency can increase very easily. We pride ourselves on Aria's ability to have such seamless conversation despite having so many sources of information and so many decisions to make. Seamless conversation is critical to making healthcare accessible as everyone should be comfortable using this product.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Anam Testing:** Anam is a pre-seed startup building realtime AI personas capable of having conversations at talking pace, giving faces to many headless agentic AIs. Although they have built an impressive product that has great potential to create value, their API is not perfect and has many issues (as it is still in a closed beta), which is natural for such an early stage startup. As beta testers for Anam, we were building in the dark and found many points of breakage in their product. Communicating directly with the founders to iterate quickly, we not only accelerated our own pace, but also helped a valuable company do the same. In doing so, we stripped their product down to to its core, reverse engineered certain components, built a better "brain" (that generates the reasoning for the agent) for our particular use-case, and contributed to Anam's product roadmap by enlightening the founders to ways they hadn't seen developers would use their product. 
+
+## What we learned 🌱
+Developing Aria taught us the complexity of maintaining fast, accurate, real-time conversations, especially in a field as dense as medicine. Processing voice, image, and text inputs rapidly, while ensuring reliable medical advice, was one of our biggest challenges. We quickly realized the vastness of medical knowledge and the difficulty of extracting relevant information in real time. Handling thousands of medical documents and providing personalized diagnoses required immense technical refinement. Medicine is not just data-driven but deeply personal. We learned that empathy and human-like interaction are crucial in building trust with patients, which led us to prioritize Aria’s conversational abilities alongside her diagnostic expertise. Working with Anam, an early-stage startup, exposed us to the challenges of imperfect technology. We were often problem-solving on the fly, which not only enhanced Aria but also contributed valuable insights to Anam’s product development.
+## What's next for Aria 🚀
+
+The grand vision for Aria is to be an end-to-end one-stop-shop for all health advising. Future versions of this product will include integration with hardware that could collect more data that doctors collect (such as heartbeat, blood pressure, etc.). They will also include support in more languages, which is imperative to reach the goal of accessibility. Furthermore, we aim to build partnerships with healthcare providers and insurance companies to streamline patient referrals and coverage for the treatments Aria recommends. Such partnerships will also increase Aria's personalization, as all patient health data will become integrated. In addition, future integrations would include wearable devices to offer continuous health monitoring and real-time recommendations based on the data collected, further reducing the gap between the onset of symptoms and receiving medical care. Our long-term vision is to create a comprehensive healthcare ecosystem where Aria doesn't just diagnose and refer but actively participates in a patient's ongoing care journey, from prevention to treatment and beyond. 
+
+
