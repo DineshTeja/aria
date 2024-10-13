@@ -13,6 +13,7 @@ import {
   Camera,
   CameraOff,
   Folder,
+  Folder,
 } from "lucide-react";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAnam } from "../contexts/AnamContext";
@@ -40,11 +41,16 @@ import AiPictureDialog from "@/components/ui/ai-picture-dialog";
 import Markdown from "react-markdown";
 import { debounce } from "lodash";
 import { motion, AnimatePresence } from "framer-motion";
+<<<<<<< HEAD
 import { GeistSans } from "geist/font/sans";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AnamClient } from "@anam-ai/js-sdk";
 import hark from "hark";
+=======
+import { GeistSans } from 'geist/font/sans';
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import KnowledgeManagementModal from "@/components/ui/KnowledgeManagementModal";
+>>>>>>> dfdfce1 (UI updates)
 
 enum ConversationState {
   INACTIVE = "INACTIVE",
