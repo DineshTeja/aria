@@ -88,12 +88,23 @@ async function aiDoctorPipeline(
 
   console.log(`Medical Llama info: ${medicalInfo}`);
 
+  const person = {
+    firstName: "John",
+    lastName: "Smith",
+    dateOfBirth: "1999-04-01",
+    gender: "Male",
+    locality: "New York",
+    region: "NY",
+  };
+
   const messages: GroqMessageParam[] = [
     { role: "system", content: "You are Aria, an AI health assistant." },
     { role: "user", content: systemPrompt },
     {
       role: "user",
-      content: `Patient input: ${patientInput}\n\nAdditional information from specialized medical model: ${medicalInfo}\n\nAdditional information from knowledge base: ${knowledgeBaseInfo}`,
+      content: `Patient input: ${patientInput}\n\nPatient info: ${JSON.stringify(
+        person
+      )}\n\nAdditional information from specialized medical model: ${medicalInfo}\n\nAdditional information from knowledge base: ${knowledgeBaseInfo}`,
     },
   ];
 
