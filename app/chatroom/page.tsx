@@ -41,16 +41,11 @@ import AiPictureDialog from "@/components/ui/ai-picture-dialog";
 import Markdown from "react-markdown";
 import { debounce } from "lodash";
 import { motion, AnimatePresence } from "framer-motion";
-<<<<<<< HEAD
 import { GeistSans } from "geist/font/sans";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AnamClient } from "@anam-ai/js-sdk";
 import hark from "hark";
-=======
-import { GeistSans } from 'geist/font/sans';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import KnowledgeManagementModal from "@/components/ui/KnowledgeManagementModal";
->>>>>>> dfdfce1 (UI updates)
 
 enum ConversationState {
   INACTIVE = "INACTIVE",
@@ -950,7 +945,9 @@ export default function ChatRoomPage() {
                       <h3 className="text-2xl font-semibold text-green-700 mb-3">
                         Hi, I&apos;m Aria
                       </h3>
-                      <p className={`text-sm text-muted-foreground ${GeistSans.className}`}>
+                      <p
+                        className={`text-sm text-muted-foreground ${GeistSans.className}`}
+                      >
                         I&apos;m here to listen and chat whenever you&apos;re
                         ready. Feel free to start our session when you&apos;re
                         comfortable.
@@ -958,7 +955,7 @@ export default function ChatRoomPage() {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Control panel style button */}
                 <div className="mt-4 flex justify-end">
                   <TooltipProvider>
