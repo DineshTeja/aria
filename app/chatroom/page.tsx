@@ -661,6 +661,7 @@ export default function ChatRoomPage() {
     setMicEnabled(true);
     anamClientRef.current.unmuteInputAudio();
     setPreviousPictureAnalysis(pictureAnalysis);
+    console.log(pictureAnalysis);
     getAIResponse(pictureAnalysis);
   };
 
