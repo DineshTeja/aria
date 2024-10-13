@@ -39,7 +39,7 @@ export function Header() {
                 className="flex items-center p-3 space-x-3 hover:bg-blue-50 rounded-md transition-colors"
                 asChild
               >
-                <a href="https://github.com/pr28416/rally" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/DineshTeja/aria" target="_blank" rel="noopener noreferrer">
                   <FaGithub className="h-5 w-5 text-green-700" />
                   <div>
                     <p className="font-medium">Github</p>
@@ -51,7 +51,7 @@ export function Header() {
                 className="flex items-center p-3 space-x-3 hover:bg-blue-50 rounded-md transition-colors"
                 asChild
               >
-                <a href="https://devpost.com/software/rally-8sxi2t" target="_blank" rel="noopener noreferrer">
+                <a href="https://devpost.com/software/aria-sc10g2#updates" target="_blank" rel="noopener noreferrer">
                   <FaDev className="h-5 w-5 text-green-700" />
                   <div>
                     <p className="font-medium">Devpost</p>

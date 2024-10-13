@@ -1000,7 +1000,7 @@ export default function ChatRoomPage() {
                 medical research from Medline, PubMed, and more. I&apos;m here
                 to chat about your health concerns and guide you through
                 treatment advice in a secure manner. Feel free to start a
-                session whenever you&apos;re ready. Remember, I&apos;m here to
+                private session whenever you&apos;re ready. Remember, I&apos;m here to
                 support you, but for more serious medical advice, always consult
                 with a qualified healthcare professional.
               </p>
@@ -1092,7 +1092,7 @@ export default function ChatRoomPage() {
                           onClick={() => setIsKnowledgeModalOpen(true)}
                         >
                           <Folder className="h-4 w-4 mr-2" />
-                          Manage Knowledge
+                          Manage Local Knowledge
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
