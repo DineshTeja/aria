@@ -13,7 +13,6 @@ import {
   Camera,
   CameraOff,
   Folder,
-  Folder,
 } from "lucide-react";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAnam } from "../contexts/AnamContext";
