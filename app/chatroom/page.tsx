@@ -40,8 +40,10 @@ import AiPictureDialog from "@/components/ui/ai-picture-dialog";
 import Markdown from "react-markdown";
 import { debounce } from "lodash";
 import { motion, AnimatePresence } from "framer-motion";
-import { GeistSans } from 'geist/font/sans';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { GeistSans } from "geist/font/sans";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AnamClient } from "@anam-ai/js-sdk";
+import hark from "hark";
 import KnowledgeManagementModal from "@/components/ui/KnowledgeManagementModal";
 
 enum ConversationState {
@@ -51,17 +53,19 @@ enum ConversationState {
 }
 
 // Custom hook to check for messages
-const useWaitForMessages = (messages: Message[]) => {
-  const [hasMessages, setHasMessages] = useState(messages.length > 0);
+const useWaitForMessages = (messagesRef: React.MutableRefObject<Message[]>) => {
+  const [hasMessages, setHasMessages] = useState(
+    messagesRef.current.length > 0
+  );
 
   const waitForMessages = useCallback(async () => {
-    if (messages.length === 0) {
+    if (messagesRef.current.length === 0) {
       console.log("Waiting for messages...");
       const bufferTime = 2000;
       const startTime = Date.now();
 
       while (Date.now() - startTime < bufferTime) {
-        if (messages.length > 0) {
+        if (messagesRef.current.length > 0) {
           setHasMessages(true);
           return true;
         }
@@ -72,7 +76,7 @@ const useWaitForMessages = (messages: Message[]) => {
       return false;
     }
     return true;
-  }, [messages]);
+  }, [messagesRef]);
 
   return { hasMessages, waitForMessages };
 };
@@ -132,47 +136,112 @@ export default function ChatRoomPage() {
 
   const { anamClient } = useAnam();
 
-  const { waitForMessages } = useWaitForMessages(rawMessages);
+  const [stopHark, setStopHark] = useState<(() => void) | undefined>();
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [didInterruptSpeaking, setDidInterruptSpeaking] = useState(false);
+
+  // Set of references to keep track of states that Hark closures rely on
+  const rawMessagesRef = useRef<Message[]>(rawMessages);
+  const { waitForMessages } = useWaitForMessages(rawMessagesRef);
+  const anamClientRef = useRef<AnamClient>(anamClient);
+  const previousPictureAnalysisRef = useRef<string | null>(
+    previousPictureAnalysis
+  );
+  const conversationStateRef = useRef<ConversationState>(conversationState);
+  const isSpeakingRef = useRef<boolean>(isSpeaking);
+  const didInterruptSpeakingRef = useRef<boolean>(didInterruptSpeaking);
+  const micIsEnabledRef = useRef<boolean>(micIsEnabled);
+
+  useEffect(() => {
+    rawMessagesRef.current = rawMessages;
+  }, [rawMessages]);
+
+  useEffect(() => {
+    anamClientRef.current = anamClient;
+  }, [anamClient]);
+
+  useEffect(() => {
+    previousPictureAnalysisRef.current = previousPictureAnalysis;
+  }, [previousPictureAnalysis]);
+
+  useEffect(() => {
+    conversationStateRef.current = conversationState;
+  }, [conversationState]);
+
+  useEffect(() => {
+    didInterruptSpeakingRef.current = didInterruptSpeaking;
+  }, [didInterruptSpeaking]);
+
+  useEffect(() => {
+    micIsEnabledRef.current = micIsEnabled;
+  }, [micIsEnabled]);
+
+  const startHark = useCallback(async () => {
+    try {
+      setIsSpeaking(false);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+
+      const speechEvents = hark(stream, {
+        interval: 100,
+        threshold: -50,
+      });
+
+      speechEvents.on("speaking", onUserStartSpeaking);
+      speechEvents.on("stopped_speaking", onUserStopSpeaking);
+
+      setStopHark(() => () => {
+        speechEvents.stop();
+        stream.getTracks().forEach((track) => track.stop());
+      });
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+    }
+  }, []);
 
   // Add this new state to track if a session has started
   const [sessionStarted, setSessionStarted] = useState(false);
 
-  const onConnectionEstablished = () => {
+  const onConnectionEstablished = useCallback(() => {
     console.log("Connection established");
     toast({
       title: "Connection Established",
       description: "The connection to the persona has been established.",
     });
     setConversationState(ConversationState.ACTIVE);
-  };
+  }, [toast]);
 
-  const onConnectionClosed = (reason: string) => {
-    console.log("Connection closed", reason);
-    toast({
-      title: "Connection Closed",
-      description: reason,
-      variant: "destructive",
-    });
-    setConversationState(ConversationState.INACTIVE);
-  };
+  const onConnectionClosed = useCallback(
+    (reason: string) => {
+      console.log("Connection closed", reason);
+      toast({
+        title: "Connection Closed",
+        description: reason,
+        variant: "destructive",
+      });
+      setConversationState(ConversationState.INACTIVE);
+    },
+    [toast]
+  );
 
-  const onVideoStartedPlaying = () => {
+  const onVideoStartedPlaying = useCallback(() => {
     console.log("Video started playing");
     toast({
       title: "Video Started Playing",
       description: "The video is now playing.",
     });
     setConversationState(ConversationState.ACTIVE);
-  };
+  }, [toast]);
 
-  const onVideoStartedStreaming = () => {
+  const onVideoStartedStreaming = useCallback(() => {
     console.log("Video started streaming");
     toast({
       title: "Video Started Streaming",
       description: "The video is now streaming.",
     });
     setConversationState(ConversationState.ACTIVE);
-  };
+  }, [toast]);
 
   const onAudioStarted = () => {
     console.log("Audio started");
@@ -180,6 +249,10 @@ export default function ChatRoomPage() {
 
   const onMessageReceived = (messageEvent: MessageStreamEvent) => {
     console.log("Message received", messageEvent);
+
+    if (messageEvent.interrupted) {
+      setDidInterruptSpeaking(true);
+    }
 
     // Update rawMessages
     setRawMessages((prevRawMessages) => [...prevRawMessages, messageEvent]);
@@ -209,9 +282,6 @@ export default function ChatRoomPage() {
     setAccumulatedMessages(messages);
     // Update rawMessages with the full message history
     setRawMessages(messages);
-    setAccumulatedMessages(messages);
-    // Update rawMessages with the full message history
-    setRawMessages(messages);
   };
 
   const debouncedStartConversation = debounce(async () => {
@@ -222,6 +292,10 @@ export default function ChatRoomPage() {
       return;
     }
     setConversationState(ConversationState.LOADING);
+    setPreviousPictureAnalysis(null);
+    setAiPictureDialogOpen(false);
+    setMicEnabled(true);
+    anamClient.unmuteInputAudio();
     try {
       // Remove all existing listeners before adding new ones
       anamClient.removeListener(
@@ -341,6 +415,10 @@ export default function ChatRoomPage() {
     setConversationState(ConversationState.LOADING);
     setGeneratingReport(false);
     setDiagnosticReport(null);
+    setPreviousPictureAnalysis(null);
+    setAiPictureDialogOpen(false);
+    setMicEnabled(true);
+    anamClient.unmuteInputAudio();
 
     // reset the view to transcription and mark session as started
     setShowDiagnosticReport(false);
@@ -449,6 +527,7 @@ export default function ChatRoomPage() {
 
       await anamClient.streamToVideoAndAudioElements("video", "audio");
       setConversationState(ConversationState.ACTIVE);
+      startHark();
     } catch (error) {
       console.error("Error starting conversation:", error);
       setConversationState(ConversationState.INACTIVE);
@@ -458,7 +537,15 @@ export default function ChatRoomPage() {
         variant: "destructive",
       });
     }
-  }, [anamClient, setConversationState, toast]);
+  }, [
+    anamClient,
+    onConnectionClosed,
+    onConnectionEstablished,
+    onVideoStartedPlaying,
+    onVideoStartedStreaming,
+    startHark,
+    toast,
+  ]);
 
   const stopConversation = () => {
     debouncedStartConversation.cancel();
@@ -500,6 +587,9 @@ export default function ChatRoomPage() {
     setDiagnosticReport(null);
     setMicEnabled(false);
     anamClient.muteInputAudio();
+    if (stopHark) {
+      stopHark();
+    }
 
     // Reset the view to transcription and mark session as ended
     setShowDiagnosticReport(false);
@@ -517,13 +607,24 @@ export default function ChatRoomPage() {
   };
 
   const getAIClassification = async () => {
+    console.log("getAIClassification", isSpeakingRef.current);
+    if (isSpeakingRef.current) {
+      return;
+    }
     const messagesAvailable = await waitForMessages();
     if (!messagesAvailable) {
       console.log("Aborting AI response due to no messages.");
       return;
     }
 
-    const allLines = rawMessages
+    if (didInterruptSpeakingRef.current) {
+      setDidInterruptSpeaking(false);
+      console.log("getting AI response due to interruption");
+      getAIResponse();
+      return;
+    }
+
+    const allLines = rawMessagesRef.current
       .map((message: Message) => message.content)
       .join("\n");
 
@@ -535,14 +636,16 @@ export default function ChatRoomPage() {
         },
         body: JSON.stringify({
           patientInput: allLines,
-          previousPictureAnalysis: previousPictureAnalysis,
+          previousPictureAnalysis: previousPictureAnalysisRef.current,
         }),
       });
 
       const { needsPicture } = await response.json();
 
       if (needsPicture) {
-        anamClient.talk(
+        setMicEnabled(false);
+        anamClientRef.current.muteInputAudio();
+        anamClientRef.current.talk(
           "To help me better understand your condition, could I please see a picture of it?"
         );
         setAiPictureDialogOpen(true);
@@ -555,19 +658,25 @@ export default function ChatRoomPage() {
   };
 
   const handlePictureAnalysis = (pictureAnalysis: string | null = null) => {
+    setMicEnabled(true);
+    anamClientRef.current.unmuteInputAudio();
     setPreviousPictureAnalysis(pictureAnalysis);
     getAIResponse(pictureAnalysis);
   };
 
   const getAIResponse = useCallback(
     async (pictureAnalysis: string | null = null) => {
+      console.log("getAIResponse", isSpeakingRef.current);
+      if (isSpeakingRef.current) {
+        return;
+      }
       const messagesAvailable = await waitForMessages();
       if (!messagesAvailable) {
         console.log("Aborting AI response due to no messages.");
         return;
       }
 
-      let allLines = rawMessages
+      let allLines = rawMessagesRef.current
         .map((message: Message) => message.content)
         .join("\n");
 
@@ -607,15 +716,22 @@ export default function ChatRoomPage() {
         console.log("Complete AI response:", aiResponse);
 
         // Check if the session is active before calling talk
-        if (conversationState === ConversationState.ACTIVE) {
+        console.log(
+          "conversationState",
+          conversationState,
+          "conversationStateRef",
+          conversationStateRef.current
+        );
+        if (conversationStateRef.current === ConversationState.ACTIVE) {
           try {
-            await anamClient.talk(aiResponse);
+            console.log("calling talk");
+            await anamClientRef.current.talk(aiResponse);
           } catch (talkError) {
             console.error("Error calling anamClient.talk:", talkError);
             // Attempt to restart the session
             await startConversation();
             // Try talking again after restarting
-            await anamClient.talk(aiResponse);
+            await anamClientRef.current.talk(aiResponse);
           }
         } else {
           console.warn("Cannot call talk: Conversation is not active");
@@ -630,25 +746,40 @@ export default function ChatRoomPage() {
       }
     },
     [
-      rawMessages,
       waitForMessages,
       conversationState,
-      anamClient,
+      anamClientRef,
       startConversation,
       toast,
     ]
   );
 
+  const onUserStartSpeaking = useCallback(() => {
+    setIsSpeaking(() => micIsEnabledRef.current);
+  }, []);
+
+  const onUserStopSpeaking = useCallback(() => {
+    setIsSpeaking(() => false);
+  }, []);
+
   const onMicTriggered = () => {
     if (micIsEnabled) {
       setMicEnabled(false);
       anamClient.muteInputAudio();
-      getAIClassification();
     } else {
       setMicEnabled(true);
       anamClient.unmuteInputAudio();
     }
   };
+
+  useEffect(() => {
+    console.log("changed isSpeaking to", isSpeaking, conversationState);
+    isSpeakingRef.current = isSpeaking;
+    if (!isSpeaking && conversationState === ConversationState.ACTIVE) {
+      console.log("getting AI classification");
+      getAIClassification();
+    }
+  }, [isSpeaking]);
 
   const onGenerateReport = async () => {
     setGeneratingReport(true);
@@ -738,15 +869,16 @@ export default function ChatRoomPage() {
               <h2 className="text-2xl font-semibold text-green-800">
                 👋 Good {getGreeting()}, Dinesh
               </h2>
-              <p className={`mt-2 text-sm text-green-700 ${GeistSans.className}`}>
-                I&apos;m Aria, your AI health assistant powered by the
-                latest medical research from Medline, PubMed, and more. I&apos;m
-                here to chat about your health concerns and guide you through treatment advice in a secure manner. 
-                
-                Feel free to start a session whenever you&apos;re
-                ready. Remember, I&apos;m here to support you, but for
-                more serious medical advice, always consult with a qualified
-                healthcare professional.
+              <p
+                className={`mt-2 text-sm text-green-700 ${GeistSans.className}`}
+              >
+                I&apos;m Aria, your AI health assistant powered by the latest
+                medical research from Medline, PubMed, and more. I&apos;m here
+                to chat about your health concerns and guide you through
+                treatment advice in a secure manner. Feel free to start a
+                session whenever you&apos;re ready. Remember, I&apos;m here to
+                support you, but for more serious medical advice, always consult
+                with a qualified healthcare professional.
               </p>
             </div>
           </div>
@@ -784,6 +916,11 @@ export default function ChatRoomPage() {
                       {new Date(sessionDuration * 1000)
                         .toISOString()
                         .substr(11, 8)}
+                    </Badge>
+                  )}
+                  {conversationState === ConversationState.ACTIVE && (
+                    <Badge variant="outline" className="text-green-700">
+                      {isSpeaking ? "Speaking..." : "Not speaking"}
                     </Badge>
                   )}
                 </div>
@@ -866,7 +1003,9 @@ export default function ChatRoomPage() {
                   onClick={toggleView}
                   disabled={!diagnosticReport || !sessionStarted}
                 >
-                  {showDiagnosticReport ? "View Transcription" : "View Diagnostic"}
+                  {showDiagnosticReport
+                    ? "View Transcription"
+                    : "View Diagnostic"}
                 </Button>
               </CardHeader>
               <Separator className="my-2" />
@@ -912,17 +1051,22 @@ export default function ChatRoomPage() {
                                 <p className="text-sm font-semibold text-blue-800">
                                   Aria
                                 </p>
-                                <p className={`text-sm text-blue-700 leading-relaxed mt-1 ${GeistSans.className}`}>
-                                  Hey there! I&apos;m Aria, your AI health assistant.
-                                  I&apos;m here to listen, provide information, and
-                                  offer guidance on general health topics. Feel free to
-                                  ask me about symptoms, wellness tips, or any
-                                  health-related questions you might have. Remember,
-                                  I&apos;m here to support you, but for specific medical
-                                  advice, always consult with a qualified healthcare
-                                  professional.
+                                <p
+                                  className={`text-sm text-blue-700 leading-relaxed mt-1 ${GeistSans.className}`}
+                                >
+                                  Hey there! I&apos;m Aria, your AI health
+                                  assistant. I&apos;m here to listen, provide
+                                  information, and offer guidance on general
+                                  health topics. Feel free to ask me about
+                                  symptoms, wellness tips, or any health-related
+                                  questions you might have. Remember, I&apos;m
+                                  here to support you, but for specific medical
+                                  advice, always consult with a qualified
+                                  healthcare professional.
                                 </p>
-                                <p className={`text-sm text-blue-600 mt-2 italic ${GeistSans.className}`}>
+                                <p
+                                  className={`text-sm text-blue-600 mt-2 italic ${GeistSans.className}`}
+                                >
                                   How can I assist you with your health today?
                                 </p>
                               </div>
@@ -932,7 +1076,9 @@ export default function ChatRoomPage() {
                               <div
                                 key={index}
                                 className={`flex items-start space-x-3 p-3 rounded-lg ${
-                                  message.role === "user" ? "bg-green-50" : "bg-blue-50"
+                                  message.role === "user"
+                                    ? "bg-green-50"
+                                    : "bg-blue-50"
                                 }`}
                               >
                                 <div className="flex-shrink-0 mt-1">
@@ -959,7 +1105,9 @@ export default function ChatRoomPage() {
                                     {message.role === "user" ? "You" : "Aria"}
                                   </p>
                                   <p
-                                    className={`${GeistSans.className} text-sm mt-1 ${
+                                    className={`${
+                                      GeistSans.className
+                                    } text-sm mt-1 ${
                                       message.role === "user"
                                         ? "text-green-700"
                                         : "text-blue-700"
@@ -1104,7 +1252,9 @@ export default function ChatRoomPage() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {cameraEnabled ? "Turn off your camera" : "Turn on your camera"}
+                    {cameraEnabled
+                      ? "Turn off your camera"
+                      : "Turn on your camera"}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
