@@ -1370,7 +1370,7 @@ export default function ChatRoomPage() {
         {/* Control Panel */}
         <Card className="mt-6 bg-card text-card-foreground">
           <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1378,7 +1378,7 @@ export default function ChatRoomPage() {
                       variant="default"
                       size="lg"
                       className={cn(
-                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        "w-full px-4 py-3 text-base sm:text-lg font-semibold transition-all duration-200",
                         conversationState === ConversationState.ACTIVE
                           ? "bg-red-500 hover:bg-red-600"
                           : conversationState === ConversationState.LOADING
@@ -1402,17 +1402,17 @@ export default function ChatRoomPage() {
                     >
                       {conversationState === ConversationState.ACTIVE ? (
                         <>
-                          <PhoneOff className="w-6 h-6 mr-2" />
+                          <PhoneOff className="w-5 h-5 mr-2" />
                           End Session
                         </>
                       ) : conversationState === ConversationState.LOADING ? (
                         <>
-                          <LoaderIcon className="w-6 h-6 mr-2 animate-spin" />
+                          <LoaderIcon className="w-5 h-5 mr-2 animate-spin" />
                           Connecting...
                         </>
                       ) : (
                         <>
-                          <Phone className="w-6 h-6 mr-2" />
+                          <Phone className="w-5 h-5 mr-2" />
                           Start Session
                         </>
                       )}
@@ -1435,7 +1435,7 @@ export default function ChatRoomPage() {
                       variant="outline"
                       size="lg"
                       className={cn(
-                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        "w-full px-4 py-3 text-base sm:text-lg font-semibold transition-all duration-200",
                         micIsEnabled
                           ? "bg-green-700 text-white hover:bg-green-800"
                           : "text-green-700 hover:bg-green-50"
@@ -1445,12 +1445,12 @@ export default function ChatRoomPage() {
                     >
                       {!micIsEnabled ? (
                         <>
-                          <MicOff className="w-6 h-6 mr-2" />
+                          <MicOff className="w-5 h-5 mr-2" />
                           Unmute
                         </>
                       ) : (
                         <>
-                          <Mic className="w-6 h-6 mr-2" />
+                          <Mic className="w-5 h-5 mr-2" />
                           Mute
                         </>
                       )}
@@ -1471,7 +1471,7 @@ export default function ChatRoomPage() {
                       variant="outline"
                       size="lg"
                       className={cn(
-                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        "w-full px-4 py-3 text-base sm:text-lg font-semibold transition-all duration-200",
                         cameraEnabled
                           ? "bg-green-700 text-white hover:bg-green-800"
                           : "text-green-700 hover:bg-green-50"
@@ -1480,12 +1480,12 @@ export default function ChatRoomPage() {
                     >
                       {cameraEnabled ? (
                         <>
-                          <CameraOff className="w-6 h-6 mr-2" />
+                          <CameraOff className="w-5 h-5 mr-2" />
                           Turn Camera Off
                         </>
                       ) : (
                         <>
-                          <Camera className="w-6 h-6 mr-2" />
+                          <Camera className="w-5 h-5 mr-2" />
                           Turn Camera On
                         </>
                       )}
@@ -1506,7 +1506,7 @@ export default function ChatRoomPage() {
                       variant="outline"
                       size="lg"
                       className={cn(
-                        "w-full sm:w-auto px-6 py-3 text-lg font-semibold transition-all duration-200",
+                        "w-full px-4 py-3 text-base sm:text-lg font-semibold transition-all duration-200",
                         generatingReport
                           ? "bg-green-700 text-white hover:bg-green-800"
                           : "text-green-700 hover:bg-green-50"
@@ -1519,12 +1519,12 @@ export default function ChatRoomPage() {
                     >
                       {generatingReport ? (
                         <>
-                          <LoaderIcon className="w-6 h-6 mr-2 animate-spin" />
-                          Generating Report
+                          <LoaderIcon className="w-5 h-5 mr-2 animate-spin" />
+                          Generating...
                         </>
                       ) : (
                         <>
-                          <SquareActivity className="w-6 h-6 mr-2" />
+                          <SquareActivity className="w-5 h-5 mr-2" />
                           Diagnostic Report
                         </>
                       )}
